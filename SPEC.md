@@ -148,7 +148,7 @@ T7|x|`versionCheckHook` + `versionCheckProgramArg = "--version"`|V1,V7
 T8|x|skip list ported (corroborated by nixpkgs recipe + upstream `default.nix`). Sandbox run: 244 passed, 0 failed, 8 filtered|V9
 T9|x|shell completions install (bash/fish/zsh) via `installShellFiles`|I.flake
 T10|x|single input `nixpkgs-lock` + `nixpkgs.follows`, commit `flake.lock`|V4,V18
-T11|~|cachix `pr0d1r2` pubkey recorded (§I). Left: confirm cache exists + add `CACHIX_AUTH_TOKEN` secret. `cachix` binary ⊥ installed locally|I.env,V15
+T11|~|cachix `pr0d1r2` confirmed live (`nix-cache-info` 200, `Priority: 41`), pubkey ∈ §I. Left: `CACHIX_AUTH_TOKEN` secret — blocked, GH repo `pr0d1r2/nix-hk` ⊥ exist yet|I.env,V15
 T12|x|`.github/workflows/build.yml` 3-runner matrix, native builds|V2,V5
 T13|x|cachix push: `main` only, `skipPush` on PR, `pushFilter` own paths|V5,V10
 T14|x|`nix flake check --all-systems` in CI. Bare form silently skips foreign systems ∴ `--all-systems` mandatory|V4,V24
