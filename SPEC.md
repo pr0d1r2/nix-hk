@@ -95,7 +95,7 @@ nixpkgs-lock ──> nix-hk ──┐
 - env: `CACHIX_AUTH_TOKEN` ! set in repo secrets (write token)
 - cmd: `nix build .#hk` → `result/bin/hk`
 - cmd: `nix run .#hk -- --version` → stdout `hk 1.55.0`
-- cmd: `nix flake check` → exit 0
+- cmd: `nix flake check --all-systems` → exit 0. Bare `nix flake check` ⊥ sufficient: silently omits systems the runner ⊥ build (`warning: The check omitted these incompatible systems: …`) ∴ tier-2 rots green
 - ci: `.github/workflows/build.yml` matrix {ubuntu-24.04, ubuntu-24.04-arm, macos-14}
 
 ## §V invariants
@@ -149,24 +149,24 @@ T8|x|skip list ported (corroborated by nixpkgs recipe + upstream `default.nix`).
 T9|x|shell completions install (bash/fish/zsh) via `installShellFiles`|I.flake
 T10|x|single input `nixpkgs-lock` + `nixpkgs.follows`, commit `flake.lock`|V4,V18
 T11|~|cachix `pr0d1r2` pubkey recorded (§I). Left: confirm cache exists + add `CACHIX_AUTH_TOKEN` secret. `cachix` binary ⊥ installed locally|I.env,V15
-T12|.|`.github/workflows/build.yml` 3-runner matrix, native builds|V2,V5
-T13|.|cachix push step: `main` only, filter own paths|V5,V10
-T14|.|`nix flake check` job in CI|V4
+T12|x|`.github/workflows/build.yml` 3-runner matrix, native builds|V2,V5
+T13|x|cachix push: `main` only, `skipPush` on PR, `pushFilter` own paths|V5,V10
+T14|x|`nix flake check --all-systems` in CI. Bare form silently skips foreign systems ∴ `--all-systems` mandatory|V4,V24
 T15|x|`nixConfig` substituter + pubkey in own `flake.nix`|I.consumer
-T16|.|README: pin graph + consumer wiring snippet (2 inputs)|V6,I.consumer
+T16|x|README: pin graph + consumer wiring + `trusted-users` trap|V6,I.consumer
 T17|.|verify cachix hit from clean store ∀ sys (`nix build --max-jobs 0`). ! consumer ∈ `trusted-users` first, else substituter silently ignored|V6
 T19|.|CI job: detect new hk tag upstream|—
 T20|x|dead: `nixpkgs-rust-lock` repo never created, layer removed|—
 T21|x|dead w/ T20|—
 T22|x|dead: cycle guard superseded by nixpkgs-lock leaf rule #17|V19
-T23|.|CI assert nixpkgs rev ≡ nixpkgs-lock rev|V13
-T24|.|CI assert rustc ≥ 1.88.0 in pinned nixpkgs|V17
+T23|x|CI assert nixpkgs rev ≡ nixpkgs-lock rev. Tested local: both `9f78f44a` ✓|V13
+T24|x|folded into T38 — asserting 1.95.x implies ≥ 1.88.0|V17,V31
 T25|.|bump-order runbook (3 hops); wire into `pin-refresh` loop|V22
 T26|.|itok migrate: drop rev `241313f4…`, 2 inputs, hk from nix-hk, `rust-version = "1.95"`, edition `2024`|V6,V32,I.consumer
 T27|.|microlith migrate: same, `rust-version = "1.95"`|V6,V32,I.consumer
 T28|x|decided: declare 4 sys, CI/cache tier-1 3, `x86_64-darwin` tier-2 eval-only|V23,V24
-T33|.|eval-only job: `nix eval .#packages.x86_64-darwin.hk.drvPath` ∀ CI, ⊥ build|V24
-T34|.|README tier table: which sys cached, which built local|V25
+T33|x|eval-only job for x86_64-darwin. Local run: ∀ 4 sys eval clean|V24
+T34|x|README tier table: which sys cached, which built local|V25
 T29|x|decided: crate-pin governance ∉ this repo (→ set-and-setting or accepted drift)|—
 T30|x|nix-hk devShell consumes pinned-nixpkgs gates, dogfoods own hk|I.flake,V20
 T31|x|dead: bootstrap swap unneeded, `nixpkgs-lock` is the final input|V18
@@ -174,7 +174,7 @@ T32|.|`update-pins.yml` cron `50 6 * * *` polling nixpkgs-lock (pull model, ⊥ 
 T35|x|dead: itok publish decision was crate-pin governance|—
 T36|x|dead as standalone; edition unify folded into T26|—
 T37|x|dead: `blackbox` microlith drift ∉ this repo|—
-T38|.|CI assert pinned rustc minor ≡ `1.95` exact|V31
+T38|x|CI assert pinned rustc ≡ 1.95.x. Tested local: `rustc 1.95.0` ✓|V31
 T39|x|proved hk 1.55.0 + itok (`--all-features`) + microlith compile on rustc 1.95.0 (aarch64-darwin). `hk --version` → `hk 1.55.0`|V31,V32
 T40|x|measured: cargo+rustc alone build hk. ⊥ cmake, ⊥ pkg-config, ⊥ libgit2, ⊥ openssl. Encoded §C|V34
 
