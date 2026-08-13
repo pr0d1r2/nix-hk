@@ -62,6 +62,23 @@ jobs:
             *) echo "::error::expected hk 1.55.0, got: $got" >&2; exit 1 ;;
           esac
 
+      # cachix-action pushes nothing when authToken is empty and exits 0, so a
+      # green main build proves nothing about the cache actually being
+      # populated -- consumers would just rebuild from source. Ask the cache
+      # directly instead of trusting the push step (V35).
+      - name: Confirm the built path reached the cache
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        run: |
+          set -euo pipefail
+          hash="$(basename "$(readlink -f result)" | cut -d- -f1)"
+          code="$(curl -s -o /dev/null -w '%{http_code}' "https://pr0d1r2.cachix.org/$hash.narinfo")"
+          echo "$hash.narinfo -> $code"
+          if [ "$code" != "200" ]; then
+            echo "::error::hk is not in pr0d1r2.cachix.org after a main build." >&2
+            echo "::error::Usually a missing or expired CACHIX_AUTH_TOKEN secret (V35)." >&2
+            exit 1
+          fi
+
   # Tier-2 and eval-only gates. x86_64-darwin must evaluate everywhere but is
   # never built by CI: GitHub's only Intel macOS runner is macos-13 and is being
   # retired. Breakage there must not block main (V24, V25).

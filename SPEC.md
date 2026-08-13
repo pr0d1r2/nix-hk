@@ -134,6 +134,7 @@ nixpkgs-lock ──> nix-hk ──┐
 - V32: ∀ fleet Rust repo → `Cargo.toml` `rust-version` ≡ pinned rustc minor. Drift = gate fail. Nothing checked this before ∴ 1.96-vs-1.91 went unnoticed
 - V33: libgit2 vendored. ⊥ `LIBGIT2_NO_VENDOR`, ⊥ `libgit2` ∈ buildInputs. If a future pin ships libgit2 satisfying `libgit2-sys` req, switching = deliberate change + measured, ⊥ assumed
 - V34: `buildInputs`/`nativeBuildInputs` ≡ measured need. ∀ entry ! justified by a build failure without it. ⊥ copy upstream recipe unverified
+- V35: `main` build → built path ∈ cachix, asserted by querying `<hash>.narinfo` ≡ 200. `cachix-action` w/ empty `authToken` pushes nothing & exits 0 ∴ green CI ⊥ evidence of a populated cache
 
 ## §T tasks
 
@@ -155,6 +156,7 @@ T14|x|`nix flake check --all-systems` in CI. Bare form silently skips foreign sy
 T15|x|`nixConfig` substituter + pubkey in own `flake.nix`|I.consumer
 T16|x|README: pin graph + consumer wiring + `trusted-users` trap|V6,I.consumer
 T17|.|verify cachix hit from clean store ∀ sys (`nix build --max-jobs 0`). ! consumer ∈ `trusted-users` first, else substituter silently ignored|V6
+T41|.|`cachix watch-store` ⊥ needed; V35 assert added to build job. Verify green once token set|V35
 T19|.|CI job: detect new hk tag upstream|—
 T20|x|dead: `nixpkgs-rust-lock` repo never created, layer removed|—
 T21|x|dead w/ T20|—
@@ -183,3 +185,4 @@ T40|x|measured: cargo+rustc alone build hk. ⊥ cmake, ⊥ pkg-config, ⊥ libgi
 id|date|cause|fix
 B1|2026-08-13|§C claimed "nixpkgs links system `libgit2`, keep that path". False: `libgit2-sys 0.18.7+1.9.6` needs `>= 1.9.6`, pin has 1.9.3, master 1.9.4 → vendored is only path. Would have shipped a derivation that ⊥ build|V33
 B2|2026-08-13|§C listed `openssl` buildInput copied from upstream recipe. hk = rustls, ⊥ `openssl-sys` ∈ lock, binary links neither. Dead closure weight|V34
+B3|2026-08-13|First `main` CI run green, cache still empty (404). `cachix-action` no-ops on empty `authToken`, exits 0 → push step ⊥ evidence. V6 would read satisfied while ∀ consumer rebuilds from source|V35
