@@ -107,6 +107,11 @@ jobs:
                     "github:NixOS/nixpkgs/$rev#actionlint" \
             -c sh -c 'shellcheck scripts/*.sh && actionlint .github/workflows/*.yml'
 
+      # A --skip naming a test that no longer exists is accepted silently, so
+      # the skip list can decay into a no-op without any signal (V9).
+      - name: checkFlags skips still name real tests
+        run: ./scripts/check-skips.sh
+
   # Does the cache actually have hk? cachix pushes from its post-job step and
   # logs push failures without failing the job -- a 403 from an unauthorized
   # token reads as a green build over an empty cache. So this runs after the
