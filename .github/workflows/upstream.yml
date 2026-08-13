@@ -1,0 +1,82 @@
+name: upstream
+
+# Poll jdx/hk for a new release and open a PR that bumps to it, hashes already
+# resolved and the build already proven. Pull model on purpose: no cross-repo
+# token, nothing upstream needs to know we exist.
+on:
+  schedule:
+    - cron: "20 6 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: upstream
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  bump:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: cachix/install-nix-action@v31
+        with:
+          extra_nix_config: |
+            experimental-features = nix-command flakes
+            accept-flake-config = true
+
+      # Read-only here. The push happens on the resulting PR's own CI run, once
+      # a human has looked at it.
+      - uses: cachix/cachix-action@v16
+        with:
+          name: pr0d1r2
+          skipPush: true
+
+      - name: Bump to latest upstream tag
+        id: bump
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: ./scripts/bump-hk.sh | tee -a "$GITHUB_OUTPUT"
+
+      - name: Open PR
+        if: steps.bump.outputs.NEW_VERSION != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          V: ${{ steps.bump.outputs.NEW_VERSION }}
+        run: |
+          set -euo pipefail
+          branch="upstream/hk-$V"
+          # Idempotent: a PR for this version may already be open from an
+          # earlier run that nobody has merged yet.
+          if git ls-remote --exit-code --heads origin "$branch" >/dev/null 2>&1; then
+            echo "branch $branch already exists, nothing to do"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git switch -c "$branch"
+          git add pkgs/hk/package.nix
+          git commit -m "feat: hk $V
+
+          Bumped by scripts/bump-hk.sh. Both hashes were resolved from
+          upstream and \`nix build .#hk\` succeeded before this PR was opened,
+          so the version claim is backed by a build rather than a tag name.
+
+          The test skip list is not revalidated automatically -- if upstream
+          renamed or fixed any of the eight skipped tests, that shows up as a
+          check failure here, which is the intended place to notice it."
+          git push -u origin "$branch"
+          gh pr create --base main --head "$branch" \
+            --title "feat: hk $V" \
+            --body "Automated bump to hk \`$V\`.
+
+          \`scripts/bump-hk.sh\` resolved \`srcHash\` and \`cargoHash\` and built the result before opening this PR, so CI here is confirmation rather than discovery.
+
+          Worth checking by hand before merging:
+
+          - the eight entries in \`checkFlags\` still name tests that exist upstream — a renamed skip silently stops skipping, or silently skips nothing
+          - the version in \`README.md\` and \`SPEC.md\` §G, which are prose and not updated by the script
+          - \`Cargo.lock\` changes that add a system dependency, since this derivation deliberately carries no \`buildInputs\`"
