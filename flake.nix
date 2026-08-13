@@ -57,7 +57,7 @@
         default = pkgs.mkShell {
           packages = [
             (pkgs.callPackage ./pkgs/hk/package.nix { })
-            pkgs.nixfmt-rfc-style
+            pkgs.nixfmt
             pkgs.statix
           ];
         };

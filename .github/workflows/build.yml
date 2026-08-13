@@ -1,0 +1,127 @@
+name: build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  # Tier-1: built, tested and cached. One native runner per system -- no qemu,
+  # no cross, because a cross-built path is a different store path and would
+  # never be the one consumers substitute (SPEC V2, V5).
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-24.04
+            system: x86_64-linux
+          - runner: ubuntu-24.04-arm
+            system: aarch64-linux
+          - runner: macos-14
+            system: aarch64-darwin
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: cachix/install-nix-action@v31
+        with:
+          extra_nix_config: |
+            experimental-features = nix-command flakes
+            accept-flake-config = true
+
+      # Pushes only from main. Fork PRs have no secret, and cachix-action
+      # degrades to read-only rather than failing, so PRs still get cache hits.
+      - uses: cachix/cachix-action@v16
+        with:
+          name: pr0d1r2
+          authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
+          skipPush: ${{ github.ref != 'refs/heads/main' || github.event_name == 'pull_request' }}
+          # Upload only what this repo produced. Without the filter the whole
+          # nixpkgs closure gets mirrored into our cache (V10).
+          pushFilter: '(-source$|nixpkgs\.tar\.gz$)'
+
+      - name: Build hk
+        run: nix build --print-build-logs .#packages.${{ matrix.system }}.hk
+
+      - name: Verify version
+        run: |
+          set -euo pipefail
+          got="$(./result/bin/hk --version)"
+          echo "$got"
+          case "$got" in
+            *1.55.0*) ;;
+            *) echo "::error::expected hk 1.55.0, got: $got" >&2; exit 1 ;;
+          esac
+
+  # Tier-2 and eval-only gates. x86_64-darwin must evaluate everywhere but is
+  # never built by CI: GitHub's only Intel macOS runner is macos-13 and is being
+  # retired. Breakage there must not block main (V24, V25).
+  check:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: cachix/install-nix-action@v31
+        with:
+          extra_nix_config: |
+            experimental-features = nix-command flakes
+            accept-flake-config = true
+
+      # --all-systems is the point. A bare `nix flake check` silently skips
+      # every system the runner cannot build, which would let tier-2 rot while
+      # reporting green.
+      - name: Flake check, all declared systems
+        run: nix flake check --all-systems --print-build-logs
+
+      - name: Eval x86_64-darwin without building
+        run: nix eval --raw .#packages.x86_64-darwin.hk.drvPath
+
+  # The assertions that keep the fleet coherent. These are cheap and catch the
+  # failure mode that has no symptom: a nixpkgs rev or rustc that drifted out of
+  # step, which shows up only as a silent cache miss or a stale toolchain.
+  assert-pins:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: cachix/install-nix-action@v31
+        with:
+          extra_nix_config: |
+            experimental-features = nix-command flakes
+            accept-flake-config = true
+
+      # V13: our nixpkgs must be the exact rev nixpkgs-lock publishes.
+      - name: nixpkgs rev matches nixpkgs-lock
+        run: |
+          set -euo pipefail
+          ours="$(nix flake metadata --json | jq -r '.locks.nodes.nixpkgs.locked.rev')"
+          theirs="$(nix flake metadata --json github:pr0d1r2/nixpkgs-lock \
+            | jq -r '.locks.nodes.nixpkgs.locked.rev')"
+          echo "ours=$ours theirs=$theirs"
+          if [ "$ours" != "$theirs" ]; then
+            echo "::error::nixpkgs rev drift: $ours != $theirs (V13)" >&2
+            exit 1
+          fi
+
+      # V31, with V17 following from it: 1.95 >= hk's MSRV of 1.88.0. Pinning
+      # the exact minor is the part that was missing -- a consumer sat on 1.96
+      # against a 1.91 pin and nothing anywhere said so.
+      - name: rustc from the pin is 1.95.x
+        run: |
+          set -euo pipefail
+          rev="$(nix flake metadata --json | jq -r '.locks.nodes.nixpkgs.locked.rev')"
+          ver="$(nix eval --raw "github:NixOS/nixpkgs/$rev#rustc.version")"
+          echo "rustc $ver"
+          case "$ver" in
+            1.95.*) ;;
+            *) echo "::error::expected rustc 1.95.x from the pin, got $ver (V31)" >&2; exit 1 ;;
+          esac
