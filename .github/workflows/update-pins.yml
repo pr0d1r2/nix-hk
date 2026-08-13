@@ -1,0 +1,88 @@
+name: update-pins
+
+# Follow nixpkgs-lock. Pull model: this repo polls, rather than nixpkgs-lock
+# pushing to ~80 consumers with a cross-repo token it would have to hold.
+#
+# Runs after nixpkgs-lock's own refresh so a bump is picked up the same morning
+# rather than a day late.
+on:
+  schedule:
+    - cron: "50 6 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: update-pins
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  update:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: cachix/install-nix-action@v31
+        with:
+          extra_nix_config: |
+            experimental-features = nix-command flakes
+            accept-flake-config = true
+
+      - name: Update nixpkgs-lock input
+        id: update
+        run: |
+          set -euo pipefail
+          before="$(nix flake metadata --json | jq -r '.locks.nodes.nixpkgs.locked.rev')"
+          nix flake update nixpkgs-lock
+          after="$(nix flake metadata --json | jq -r '.locks.nodes.nixpkgs.locked.rev')"
+          echo "before=$before after=$after"
+          if [ "$before" = "$after" ]; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            {
+              echo "changed=true"
+              echo "before=$before"
+              echo "after=$after"
+            } >> "$GITHUB_OUTPUT"
+          fi
+
+      # Build before proposing. A nixpkgs bump can move rustc or break the
+      # vendored libgit2 build, and finding that out in a PR that already
+      # builds is cheaper than finding out after merge.
+      - name: Build against the new pin
+        if: steps.update.outputs.changed == 'true'
+        run: nix build --print-build-logs .#hk
+
+      - name: Open PR
+        if: steps.update.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BEFORE: ${{ steps.update.outputs.before }}
+          AFTER: ${{ steps.update.outputs.after }}
+        run: |
+          set -euo pipefail
+          short="${AFTER:0:12}"
+          branch="pins/nixpkgs-$short"
+          if git ls-remote --exit-code --heads origin "$branch" >/dev/null 2>&1; then
+            echo "branch $branch already exists, nothing to do"
+            exit 0
+          fi
+          rustc="$(nix eval --raw "github:NixOS/nixpkgs/$AFTER#rustc.version")"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git switch -c "$branch"
+          git add flake.lock
+          git commit -m "build: follow nixpkgs-lock to $short
+
+          rustc on the new pin is $rustc. hk built against it before this PR
+          was opened."
+          git push -u origin "$branch"
+          gh pr create --base main --head "$branch" \
+            --title "build: follow nixpkgs-lock to $short" \
+            --body "nixpkgs-lock moved \`$BEFORE\` -> \`$AFTER\`.
+
+          rustc on the new pin: \`$rustc\`. hk was built against it before this PR was opened.
+
+          If rustc changed minor version, the fleet moves with it — \`itok\` and \`microlith\` declare \`rust-version\` and will need the same bump, in that order, after this merges (V22, V32). The \`assert-pins\` check here only proves *this* repo agrees with nixpkgs-lock."

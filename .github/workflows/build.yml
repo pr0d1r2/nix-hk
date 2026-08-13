@@ -86,6 +86,27 @@ jobs:
       - name: Eval x86_64-darwin without building
         run: nix eval --raw .#packages.x86_64-darwin.hk.drvPath
 
+  # The automation is now shell and YAML that only executes on a schedule, so a
+  # mistake in it stays invisible until the day it matters. Cheap to lint.
+  lint:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: cachix/install-nix-action@v31
+        with:
+          extra_nix_config: |
+            experimental-features = nix-command flakes
+            accept-flake-config = true
+
+      - name: shellcheck and actionlint
+        run: |
+          set -euo pipefail
+          rev="$(nix flake metadata --json | jq -r '.locks.nodes.nixpkgs.locked.rev')"
+          nix shell "github:NixOS/nixpkgs/$rev#shellcheck" \
+                    "github:NixOS/nixpkgs/$rev#actionlint" \
+            -c sh -c 'shellcheck scripts/*.sh && actionlint .github/workflows/*.yml'
+
   # Does the cache actually have hk? cachix pushes from its post-job step and
   # logs push failures without failing the job -- a 403 from an unauthorized
   # token reads as a green build over an empty cache. So this runs after the

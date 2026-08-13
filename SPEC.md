@@ -158,13 +158,15 @@ T15|x|`nixConfig` substituter + pubkey in own `flake.nix`|I.consumer
 T16|x|README: pin graph + consumer wiring + `trusted-users` trap|V6,I.consumer
 T17|~|cache serves real content: narinfo 200 + `Sig: pr0d1r2.cachix.org-1:` ∀ 3 sys, NAR downloaded (8439655 B ≡ `FileSize`). `Deriver` ≡ locally-built drv `jivj3chhapnrj9x8pnk6kzx8vxnymv58` ∴ paths ≡ across CI & local. Left: true daemon substitution (`nix build --max-jobs 0`) — blocked on owner ∈ `trusted-users`|V6
 T41|x|`verify-cache` job green on `main`, added to required checks|V35
-T19|.|CI job: detect new hk tag upstream|—
+T42|.|`checkFlags` skip list ⊥ auto-revalidated on bump. Renamed test upstream → skip silently matches nothing. Manual check ∈ RUNBOOK; ? gate later|V9
+T43|.|CI lint job (shellcheck + actionlint) added ∴ scheduled automation ⊥ rot unseen|—
+T19|x|`upstream.yml` cron `20 6 * * *` + `scripts/bump-hk.sh` (resolves both hashes, builds, opens PR). `--force` mode verified: hashes reproduce, ⊥ diff|—
 T20|x|dead: `nixpkgs-rust-lock` repo never created, layer removed|—
 T21|x|dead w/ T20|—
 T22|x|dead: cycle guard superseded by nixpkgs-lock leaf rule #17|V19
 T23|x|CI assert nixpkgs rev ≡ nixpkgs-lock rev. Tested local: both `9f78f44a` ✓|V13
 T24|x|folded into T38 — asserting 1.95.x implies ≥ 1.88.0|V17,V31
-T25|.|bump-order runbook (3 hops); wire into `pin-refresh` loop|V22
+T25|x|`docs/RUNBOOK.md`: bump order, new-release flow, rustc moves, cache-failure triage|V22
 T26|.|itok migrate: drop rev `241313f4…`, 2 inputs, hk from nix-hk, `rust-version = "1.95"`, edition `2024`|V6,V32,I.consumer
 T27|.|microlith migrate: same, `rust-version = "1.95"`|V6,V32,I.consumer
 T28|x|decided: declare 4 sys, CI/cache tier-1 3, `x86_64-darwin` tier-2 eval-only|V23,V24
@@ -173,7 +175,7 @@ T34|x|README tier table: which sys cached, which built local|V25
 T29|x|decided: crate-pin governance ∉ this repo (→ set-and-setting or accepted drift)|—
 T30|x|nix-hk devShell consumes pinned-nixpkgs gates, dogfoods own hk|I.flake,V20
 T31|x|dead: bootstrap swap unneeded, `nixpkgs-lock` is the final input|V18
-T32|.|`update-pins.yml` cron `50 6 * * *` polling nixpkgs-lock (pull model, ⊥ cross-repo token)|V22
+T32|x|`update-pins.yml` cron `50 6 * * *`, builds against new pin before opening PR|V22
 T35|x|dead: itok publish decision was crate-pin governance|—
 T36|x|dead as standalone; edition unify folded into T26|—
 T37|x|dead: `blackbox` microlith drift ∉ this repo|—
