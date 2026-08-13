@@ -108,7 +108,7 @@ nixpkgs-lock ──> nix-hk ──┐
 - V6: consumer w/ substituter configured → hk fetched, ⊥ `building '/nix/store/...hk...drv'` in log
 - V7: derivation asserts version at install (`versionCheckHook`) → mismatch = build fail, ⊥ silent wrong binary
 - V8: ⊥ IFD, ⊥ `--impure`, ⊥ network in build phase
-- V9: `doCheck = true`. Every skipped test listed in `checkFlags` w/ inline reason
+- V9: `doCheck = true`. Every skipped test listed in `checkFlags` w/ inline reason. ∀ skip ! name a test that EXISTS in `.#hk.src` — `--skip=<gone>` is accepted silently ∴ CI asserts (`scripts/check-skips.sh`)
 - V10: push filter uploads own paths only; ⊥ mirror whole nixpkgs closure
   - measured: hk narinfo `References: …-libiconv-113` only, that dep ∉ our cache (`nix copy --from` alone fails on it). Deps come from `cache.nixos.org` ∴ V10 holds & consumers ! keep both substituters
 - V11: ~~own pinned nixpkgs rev~~ superseded by V17, V18
@@ -158,8 +158,8 @@ T15|x|`nixConfig` substituter + pubkey in own `flake.nix`|I.consumer
 T16|x|README: pin graph + consumer wiring + `trusted-users` trap|V6,I.consumer
 T17|~|cache serves real content: narinfo 200 + `Sig: pr0d1r2.cachix.org-1:` ∀ 3 sys, NAR downloaded (8439655 B ≡ `FileSize`). `Deriver` ≡ locally-built drv `jivj3chhapnrj9x8pnk6kzx8vxnymv58` ∴ paths ≡ across CI & local. Left: true daemon substitution (`nix build --max-jobs 0`) — blocked on owner ∈ `trusted-users`|V6
 T41|x|`verify-cache` job green on `main`, added to required checks|V35
-T42|.|`checkFlags` skip list ⊥ auto-revalidated on bump. Renamed test upstream → skip silently matches nothing. Manual check ∈ RUNBOOK; ? gate later|V9
-T43|.|CI lint job (shellcheck + actionlint) added ∴ scheduled automation ⊥ rot unseen|—
+T42|x|`scripts/check-skips.sh` asserts ∀ skip → `fn <name>` ∈ `.#hk.src`. Wired into `lint` job. Negative-tested: bogus skip → exit 1|V9
+T43|x|CI `lint` job: shellcheck + actionlint + skip validator|—
 T19|x|`upstream.yml` cron `20 6 * * *` + `scripts/bump-hk.sh` (resolves both hashes, builds, opens PR). `--force` mode verified: hashes reproduce, ⊥ diff|—
 T20|x|dead: `nixpkgs-rust-lock` repo never created, layer removed|—
 T21|x|dead w/ T20|—
