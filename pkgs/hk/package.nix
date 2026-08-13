@@ -6,6 +6,7 @@
   installShellFiles,
   versionCheckHook,
   gitMinimal,
+  usage,
 }:
 
 rustPlatform.buildRustPackage (finalAttrs: {
@@ -37,8 +38,13 @@ rustPlatform.buildRustPackage (finalAttrs: {
   #   libcrypto.
   #
   # pkg-config goes with them: with nothing to probe it has nothing to do.
+  #
+  # `usage` is the one upstream input that survives measurement: `hk completion
+  # <shell>` shells out to the `usage` binary at postInstall time. A plain
+  # `cargo build` never reaches that, which is exactly how it looked droppable.
   nativeBuildInputs = [
     installShellFiles
+    usage
   ];
 
   # Some tests build fixture repositories by shelling out to git.
