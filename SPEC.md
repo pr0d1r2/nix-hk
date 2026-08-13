@@ -110,6 +110,7 @@ nixpkgs-lock ──> nix-hk ──┐
 - V8: ⊥ IFD, ⊥ `--impure`, ⊥ network in build phase
 - V9: `doCheck = true`. Every skipped test listed in `checkFlags` w/ inline reason
 - V10: push filter uploads own paths only; ⊥ mirror whole nixpkgs closure
+  - measured: hk narinfo `References: …-libiconv-113` only, that dep ∉ our cache (`nix copy --from` alone fails on it). Deps come from `cache.nixos.org` ∴ V10 holds & consumers ! keep both substituters
 - V11: ~~own pinned nixpkgs rev~~ superseded by V17, V18
 - V12: ~~inputs ≡ {nixpkgs-lock}~~ restored as V18
 - V13: nixpkgs rev ≡ ∀ ecosystem repo (nixpkgs-lock, nix-hk, consumers). CI assert equality; drift → fail loud, ⊥ silent cache miss
@@ -149,14 +150,14 @@ T7|x|`versionCheckHook` + `versionCheckProgramArg = "--version"`|V1,V7
 T8|x|skip list ported (corroborated by nixpkgs recipe + upstream `default.nix`). Sandbox run: 244 passed, 0 failed, 8 filtered|V9
 T9|x|shell completions install (bash/fish/zsh) via `installShellFiles`|I.flake
 T10|x|single input `nixpkgs-lock` + `nixpkgs.follows`, commit `flake.lock`|V4,V18
-T11|~|cachix `pr0d1r2` confirmed live (`nix-cache-info` 200, `Priority: 41`), pubkey ∈ §I. Left: `CACHIX_AUTH_TOKEN` secret — blocked, GH repo `pr0d1r2/nix-hk` ⊥ exist yet|I.env,V15
+T11|x|cachix live, per-cache WRITE token set, ∀ 3 tier-1 paths pushed & signed w/ expected key|I.env,V15
 T12|x|`.github/workflows/build.yml` 3-runner matrix, native builds|V2,V5
 T13|x|cachix push: `main` only, `skipPush` on PR, `pushFilter` own paths|V5,V10
 T14|x|`nix flake check --all-systems` in CI. Bare form silently skips foreign systems ∴ `--all-systems` mandatory|V4,V24
 T15|x|`nixConfig` substituter + pubkey in own `flake.nix`|I.consumer
 T16|x|README: pin graph + consumer wiring + `trusted-users` trap|V6,I.consumer
-T17|.|verify cachix hit from clean store ∀ sys (`nix build --max-jobs 0`). ! consumer ∈ `trusted-users` first, else substituter silently ignored|V6
-T41|~|V35 assert = own `verify-cache` job. Blocked: `CACHIX_AUTH_TOKEN` ! per-cache WRITE token (current one 403s)|V35
+T17|~|cache serves real content: narinfo 200 + `Sig: pr0d1r2.cachix.org-1:` ∀ 3 sys, NAR downloaded (8439655 B ≡ `FileSize`). `Deriver` ≡ locally-built drv `jivj3chhapnrj9x8pnk6kzx8vxnymv58` ∴ paths ≡ across CI & local. Left: true daemon substitution (`nix build --max-jobs 0`) — blocked on owner ∈ `trusted-users`|V6
+T41|x|`verify-cache` job green on `main`, added to required checks|V35
 T19|.|CI job: detect new hk tag upstream|—
 T20|x|dead: `nixpkgs-rust-lock` repo never created, layer removed|—
 T21|x|dead w/ T20|—
