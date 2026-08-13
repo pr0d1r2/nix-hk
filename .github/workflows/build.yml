@@ -62,22 +62,6 @@ jobs:
             *) echo "::error::expected hk 1.55.0, got: $got" >&2; exit 1 ;;
           esac
 
-      # cachix-action pushes nothing when authToken is empty and exits 0, so a
-      # green main build proves nothing about the cache actually being
-      # populated -- consumers would just rebuild from source. Ask the cache
-      # directly instead of trusting the push step (V35).
-      - name: Confirm the built path reached the cache
-        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-        run: |
-          set -euo pipefail
-          hash="$(basename "$(readlink -f result)" | cut -d- -f1)"
-          code="$(curl -s -o /dev/null -w '%{http_code}' "https://pr0d1r2.cachix.org/$hash.narinfo")"
-          echo "$hash.narinfo -> $code"
-          if [ "$code" != "200" ]; then
-            echo "::error::hk is not in pr0d1r2.cachix.org after a main build." >&2
-            echo "::error::Usually a missing or expired CACHIX_AUTH_TOKEN secret (V35)." >&2
-            exit 1
-          fi
 
   # Tier-2 and eval-only gates. x86_64-darwin must evaluate everywhere but is
   # never built by CI: GitHub's only Intel macOS runner is macos-13 and is being
@@ -101,6 +85,48 @@ jobs:
 
       - name: Eval x86_64-darwin without building
         run: nix eval --raw .#packages.x86_64-darwin.hk.drvPath
+
+  # Does the cache actually have hk? cachix pushes from its post-job step and
+  # logs push failures without failing the job -- a 403 from an unauthorized
+  # token reads as a green build over an empty cache. So this runs after the
+  # builds and asks the cache itself, which is the only answer consumers care
+  # about (V35).
+  #
+  # It must be a separate job: an in-build step runs before that post step and
+  # would 404 even when the push is about to succeed.
+  verify-cache:
+    needs: build
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: cachix/install-nix-action@v31
+        with:
+          extra_nix_config: |
+            experimental-features = nix-command flakes
+            accept-flake-config = true
+
+      # Evaluation is cross-system, so one runner can resolve every tier-1
+      # output path without building any of them.
+      - name: Every tier-1 path is in the cache
+        run: |
+          set -euo pipefail
+          rc=0
+          for sys in aarch64-darwin x86_64-linux aarch64-linux; do
+            path="$(nix eval --raw ".#packages.$sys.hk")"
+            hash="$(basename "$path" | cut -d- -f1)"
+            code="$(curl -s -o /dev/null -w '%{http_code}' "https://pr0d1r2.cachix.org/$hash.narinfo")"
+            echo "$sys $hash -> $code"
+            [ "$code" = "200" ] || rc=1
+          done
+          if [ "$rc" -ne 0 ]; then
+            echo "::error::hk missing from pr0d1r2.cachix.org after a main build." >&2
+            echo "::error::Check CACHIX_AUTH_TOKEN: it must be a per-cache token with WRITE access" >&2
+            echo "::error::to pr0d1r2, not a personal token. A 403 in the cachix push log does not" >&2
+            echo "::error::fail that job, so this is the check that catches it (V35)." >&2
+            exit 1
+          fi
 
   # The assertions that keep the fleet coherent. These are cheap and catch the
   # failure mode that has no symptom: a nixpkgs rev or rustc that drifted out of

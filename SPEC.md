@@ -92,7 +92,7 @@ nixpkgs-lock ──> nix-hk ──┐
   };
   ```
 - cachix: substituter `https://pr0d1r2.cachix.org`, key `pr0d1r2.cachix.org-1:NfWjbhgAj41byXhCKiaE+av3Vnphm1fTezHXEGsiQIM=` (literal, read from nixpkgs-lock `flake.nix` `nixConfig`)
-- env: `CACHIX_AUTH_TOKEN` ! set in repo secrets (write token)
+- env: `CACHIX_AUTH_TOKEN` ! set in repo secrets. ! **per-cache token w/ WRITE** on `pr0d1r2` (`app.cachix.org/cache/pr0d1r2/settings/authtokens`), ⊥ personal token. Wrong scope → `403 You're not authorized to access binary cache pr0d1r2`, push fails, job stays green
 - cmd: `nix build .#hk` → `result/bin/hk`
 - cmd: `nix run .#hk -- --version` → stdout `hk 1.55.0`
 - cmd: `nix flake check --all-systems` → exit 0. Bare `nix flake check` ⊥ sufficient: silently omits systems the runner ⊥ build (`warning: The check omitted these incompatible systems: …`) ∴ tier-2 rots green
@@ -134,7 +134,7 @@ nixpkgs-lock ──> nix-hk ──┐
 - V32: ∀ fleet Rust repo → `Cargo.toml` `rust-version` ≡ pinned rustc minor. Drift = gate fail. Nothing checked this before ∴ 1.96-vs-1.91 went unnoticed
 - V33: libgit2 vendored. ⊥ `LIBGIT2_NO_VENDOR`, ⊥ `libgit2` ∈ buildInputs. If a future pin ships libgit2 satisfying `libgit2-sys` req, switching = deliberate change + measured, ⊥ assumed
 - V34: `buildInputs`/`nativeBuildInputs` ≡ measured need. ∀ entry ! justified by a build failure without it. ⊥ copy upstream recipe unverified
-- V35: `main` build → built path ∈ cachix, asserted by querying `<hash>.narinfo` ≡ 200. `cachix-action` w/ empty `authToken` pushes nothing & exits 0 ∴ green CI ⊥ evidence of a populated cache
+- V35: `main` build → ∀ tier-1 path ∈ cachix, asserted by querying `<hash>.narinfo` ≡ 200 from a **separate job** (`needs: build`). `cachix-action` pushes in its POST step & logs 403/failures WITHOUT failing the job ∴ neither a green build nor a green push step is evidence of a populated cache
 
 ## §T tasks
 
@@ -156,7 +156,7 @@ T14|x|`nix flake check --all-systems` in CI. Bare form silently skips foreign sy
 T15|x|`nixConfig` substituter + pubkey in own `flake.nix`|I.consumer
 T16|x|README: pin graph + consumer wiring + `trusted-users` trap|V6,I.consumer
 T17|.|verify cachix hit from clean store ∀ sys (`nix build --max-jobs 0`). ! consumer ∈ `trusted-users` first, else substituter silently ignored|V6
-T41|.|`cachix watch-store` ⊥ needed; V35 assert added to build job. Verify green once token set|V35
+T41|~|V35 assert = own `verify-cache` job. Blocked: `CACHIX_AUTH_TOKEN` ! per-cache WRITE token (current one 403s)|V35
 T19|.|CI job: detect new hk tag upstream|—
 T20|x|dead: `nixpkgs-rust-lock` repo never created, layer removed|—
 T21|x|dead w/ T20|—
@@ -186,3 +186,5 @@ id|date|cause|fix
 B1|2026-08-13|§C claimed "nixpkgs links system `libgit2`, keep that path". False: `libgit2-sys 0.18.7+1.9.6` needs `>= 1.9.6`, pin has 1.9.3, master 1.9.4 → vendored is only path. Would have shipped a derivation that ⊥ build|V33
 B2|2026-08-13|§C listed `openssl` buildInput copied from upstream recipe. hk = rustls, ⊥ `openssl-sys` ∈ lock, binary links neither. Dead closure weight|V34
 B3|2026-08-13|First `main` CI run green, cache still empty (404). `cachix-action` no-ops on empty `authToken`, exits 0 → push step ⊥ evidence. V6 would read satisfied while ∀ consumer rebuilds from source|V35
+B4|2026-08-13|V35 assert placed INSIDE build job → runs @ 07:22:40, cachix post-push @ 07:22:41 ∴ 404 even when push would succeed. Own bug. ∴ moved to `verify-cache` job, `needs: build`|V35
+B5|2026-08-13|Token set but scoped wrong → `403 Forbidden` ∀ push, `Post Run cachix-action` STILL reported success. Silent-empty-cache confirmed real, ⊥ hypothetical|V35
