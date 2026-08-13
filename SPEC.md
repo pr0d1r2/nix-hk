@@ -19,7 +19,8 @@ Built w/ rustc from same 26.05 pin (1.95.0) ∴ ∀ pr0d1r2 Rust repo → identi
 - **libgit2 ! vendored.** `git2 = "0.21"` w/ feature `vendored-libgit2`; `libgit2-sys 0.18.7+1.9.6` demands `libgit2 >= 1.9.6, < 1.10.0`. Pin ships **1.9.3**, nixpkgs master **1.9.4** → system link IMPOSSIBLE both places. Upstream recipe's `buildInputs.libgit2` = vestigial; nothing sets `LIBGIT2_NO_VENDOR` ∴ nixpkgs already vendors, silently. Measured: `LIBGIT2_NO_VENDOR=1` → hard panic `no compatible system libgit2 could be found`.
 - **openssl inert too.** hk `Cargo.lock` has ⊥ `openssl-sys`, ⊥ `native-tls`. TLS = rustls (`rustls-platform-verifier`, `hyper-rustls`, `reqwest 0.13`). Built binary: ⊥ dynamic `libgit2`/`libssl`/`libcrypto` (otool). `buildInputs.openssl` = cargo-cult, drop.
 - **measured minimal build** (T40, aarch64-darwin): `cargo` + `rustc` alone → `cargo build --release --bin hk` succeeds, 2m30s. ⊥ `pkg-config`, ⊥ `cmake`, ⊥ `libgit2`, ⊥ `openssl`, ⊥ `usage` needed. `aws-lc-sys` (rustls provider, pulls `cmake 0.1.58` crate) builds via its `cc` path, ⊥ cmake binary.
-- ∴ derivation inputs: nativeBuildInputs `installShellFiles` (completions) + `versionCheckHook`; nativeCheckInputs `gitMinimal` (tests shell out to git); buildInputs **∅**. `usage` = drop-candidate, confirm @ T2 sandbox build (measured outside sandbox; stdenv `cc` + `git` were ambient).
+- ∴ derivation inputs, settled by sandbox build: nativeBuildInputs `installShellFiles` + **`usage`**; nativeInstallCheckInputs `versionCheckHook`; nativeCheckInputs `gitMinimal`; buildInputs **∅**.
+- `usage` looked droppable, is NOT. `hk completion bash|fish|zsh` execs `usage` binary @ postInstall → `installShellCompletion` wrote 3 zero-size files & aborted. Plain `cargo build` ⊥ reach postInstall ∴ minimal-build measurement missed it. Lesson: measure the phase, ⊥ the compile.
 - build script = `build = "build/mod.rs"` (⊥ root `build.rs`). build-deps `codegen 0.3`, `indexmap 2`, `serde 1`, `serde_json 1`, `toml 1`. Ran offline ✓. Vendored libgit2 C source ships inside crate ∴ V8 holds.
 - upstream hk ships own `default.nix` + `flake.nix` (unstable + flake-utils). Same 8-test skip list as nixpkgs recipe → T8 list corroborated by 2 sources. Same inert `libgit2`/`openssl`. ⊥ consume upstream flake: 2 extra inputs, unstable nixpkgs, breaks V18.
 
@@ -65,6 +66,7 @@ nixpkgs-lock ──> nix-hk ──┐
 - cachix push from GitHub Actions on `main` only. Fork PRs have ⊥ secret.
 - aarch64-linux built native on `ubuntu-24.04-arm` runner; ⊥ qemu, ⊥ cross.
 - cachix cache = `pr0d1r2` (shared ∀ ecosystem repos).
+- **`nixConfig` inert for untrusted users.** Measured: `nix build` warns `ignoring untrusted substituter 'https://pr0d1r2.cachix.org', you are not a trusted user` → builds from source, ⊥ error. Flake `nixConfig` ⊥ enough; consumer ! ∈ `trusted-users` ∈ `/etc/nix/nix.conf` (or substituter set system-wide). README ! say so, else V6 "fetched ⊥ built" fails silently on every fresh machine.
 
 ## §I interfaces
 
@@ -136,23 +138,23 @@ nixpkgs-lock ──> nix-hk ──┐
 ## §T tasks
 
 id|status|task|cites
-T1|.|repo skeleton: `flake.nix`, `.gitignore`, `README.md`|V2
-T2|.|`pkgs/hk/package.nix` from nixpkgs **master** 1.54.0 recipe (⊥ in pinned nixpkgs), bump tag `v1.55.0`, drop inert `libgit2`+`openssl` buildInputs|V1,V3,V33,V34
-T3|.|resolve real `srcHash` (nix-prefetch github v1.55.0)|V3
-T4|.|resolve real `cargoHash` (fakeHash → build → read expected)|V3
-T5|.|darwin build: confirm libgit2/openssl link, fix apple frameworks if fail|V2
-T6|.|flake outputs: packages, overlays.default, devShells, checks|I.flake,V2,V8
-T7|.|`versionCheckHook` + `versionCheckProgramArg = "--version"`|V1,V7
-T8|.|port `checkFlags` skip list (8 tests), revalidate ∀ against 1.55.0 suite|V9
-T9|.|shell completions install (bash/fish/zsh) via `installShellFiles`|I.flake
-T10|.|single input `nixpkgs-lock` + `nixpkgs.follows`, commit `flake.lock`|V4,V18
+T1|x|repo skeleton: `flake.nix`, `.gitignore`, `README.md`|V2
+T2|x|`pkgs/hk/package.nix` from nixpkgs **master** 1.54.0 recipe (⊥ in pinned nixpkgs), bump tag `v1.55.0`, drop inert `libgit2`+`openssl` buildInputs|V1,V3,V33,V34
+T3|x|resolve real `srcHash` (nix-prefetch github v1.55.0)|V3
+T4|x|resolve real `cargoHash` (fakeHash → build → read expected)|V3
+T5|x|aarch64-darwin builds clean. ⊥ apple frameworks needed, ⊥ libgit2/openssl in closure (0 refs). 65.0 MiB|V2,V33
+T6|x|flake outputs: packages, overlays.default, devShells, checks|I.flake,V2,V8
+T7|x|`versionCheckHook` + `versionCheckProgramArg = "--version"`|V1,V7
+T8|x|skip list ported (corroborated by nixpkgs recipe + upstream `default.nix`). Sandbox run: 244 passed, 0 failed, 8 filtered|V9
+T9|x|shell completions install (bash/fish/zsh) via `installShellFiles`|I.flake
+T10|x|single input `nixpkgs-lock` + `nixpkgs.follows`, commit `flake.lock`|V4,V18
 T11|~|cachix `pr0d1r2` pubkey recorded (§I). Left: confirm cache exists + add `CACHIX_AUTH_TOKEN` secret. `cachix` binary ⊥ installed locally|I.env,V15
 T12|.|`.github/workflows/build.yml` 3-runner matrix, native builds|V2,V5
 T13|.|cachix push step: `main` only, filter own paths|V5,V10
 T14|.|`nix flake check` job in CI|V4
-T15|.|`nixConfig` substituter + pubkey in own `flake.nix`|I.consumer
+T15|x|`nixConfig` substituter + pubkey in own `flake.nix`|I.consumer
 T16|.|README: pin graph + consumer wiring snippet (2 inputs)|V6,I.consumer
-T17|.|verify cachix hit from clean store ∀ sys (`nix build --max-jobs 0`)|V6
+T17|.|verify cachix hit from clean store ∀ sys (`nix build --max-jobs 0`). ! consumer ∈ `trusted-users` first, else substituter silently ignored|V6
 T19|.|CI job: detect new hk tag upstream|—
 T20|x|dead: `nixpkgs-rust-lock` repo never created, layer removed|—
 T21|x|dead w/ T20|—
@@ -166,7 +168,7 @@ T28|x|decided: declare 4 sys, CI/cache tier-1 3, `x86_64-darwin` tier-2 eval-onl
 T33|.|eval-only job: `nix eval .#packages.x86_64-darwin.hk.drvPath` ∀ CI, ⊥ build|V24
 T34|.|README tier table: which sys cached, which built local|V25
 T29|x|decided: crate-pin governance ∉ this repo (→ set-and-setting or accepted drift)|—
-T30|.|nix-hk devShell consumes pinned-nixpkgs gates, dogfoods own hk|I.flake,V20
+T30|x|nix-hk devShell consumes pinned-nixpkgs gates, dogfoods own hk|I.flake,V20
 T31|x|dead: bootstrap swap unneeded, `nixpkgs-lock` is the final input|V18
 T32|.|`update-pins.yml` cron `50 6 * * *` polling nixpkgs-lock (pull model, ⊥ cross-repo token)|V22
 T35|x|dead: itok publish decision was crate-pin governance|—
