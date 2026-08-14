@@ -13,6 +13,36 @@ the rest of the pr0d1r2 fleet pins, and served prebuilt from cachix.
 Building it here rather than in each consumer also means one derivation, one
 cache entry, and one place to bump.
 
+## Do you actually need this?
+
+Maybe not, and that is fine.
+
+**On nixos-unstable:** just use `pkgs.hk`. nixpkgs master picked up 1.55.0 on
+2026-08-13, so unstable has the same version this repo builds, already cached by
+cache.nixos.org. Nothing here beats that.
+
+**On 26.05, one machine, no shared cache:** adding nixpkgs-unstable as a second
+input and taking `hk` from it is a legitimate choice. It costs you a second
+nixpkgs evaluation and a second toolchain in the closure — hk pulls unstable's
+stdenv, rustc and glibc rather than sharing your system's — but if you have the
+disk and only one machine to care about, that is a real option and simpler than
+consuming another flake.
+
+**On 26.05, across several repos or machines that share a binary cache:** use
+this. The second-nixpkgs approach stops being cheap the moment more than one
+thing depends on the answer:
+
+- Every repo that pulls its own unstable resolves a different rev on a different
+  day, so each gets a different store path and none of them share a cache entry.
+- A flake that already follows a pinned nixpkgs gains a second, unfollowed one.
+  That is the path multiplication nixpkgs-lock exists to prevent — its own notes
+  record an 8–16× blow-up and a 522,910-byte lock from exactly this.
+- You inherit unstable's churn for one binary. hk moves on its own schedule;
+  unstable moves on everyone's.
+
+This repo builds hk from *your* pin, so hk shares the toolchain your system
+already has, and all three tier-1 systems come prebuilt from cachix.
+
 ## Use it
 
 ```nix

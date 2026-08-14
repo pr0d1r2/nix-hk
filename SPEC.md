@@ -23,6 +23,8 @@ Built w/ rustc from same 26.05 pin (1.95.0) ∴ ∀ pr0d1r2 Rust repo → identi
 - `usage` looked droppable, is NOT. `hk completion bash|fish|zsh` execs `usage` binary @ postInstall → `installShellCompletion` wrote 3 zero-size files & aborted. Plain `cargo build` ⊥ reach postInstall ∴ minimal-build measurement missed it. Lesson: measure the phase, ⊥ the compile.
 - build script = `build = "build/mod.rs"` (⊥ root `build.rs`). build-deps `codegen 0.3`, `indexmap 2`, `serde 1`, `serde_json 1`, `toml 1`. Ran offline ✓. Vendored libgit2 C source ships inside crate ∴ V8 holds.
 - upstream hk ships own `default.nix` + `flake.nix` (unstable + flake-utils). Same 8-test skip list as nixpkgs recipe → T8 list corroborated by 2 sources. Same inert `libgit2`/`openssl`. ⊥ consume upstream flake: 2 extra inputs, unstable nixpkgs, breaks V18.
+- nixpkgs master reached `hk 1.55.0` 2026-08-13 ∴ unstable now ships our version. ⊥ change anything: 26.05 still has ⊥ hk & never will (stable takes backports, ⊥ new inits).
+- **⊥ pull unstable for one package.** 2nd nixpkgs input → hk built against unstable stdenv/rustc/glibc → closure shares ⊥ with the 26.05 host, i.e. a parallel toolchain chain dragged in for one 65 MiB binary. Also the path multiplicity nixpkgs-lock's leaf rule exists to stop (8-16x, 522,910-byte lock, documented there). Breaks V18, forks the rev, kills ∀ cache hit (different rev = different store path). Building from our own pin = 1 closure, 1 toolchain, 1 bump point, cached.
 
 ### pin graph
 
