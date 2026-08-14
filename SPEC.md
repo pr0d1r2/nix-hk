@@ -54,7 +54,8 @@ nixpkgs-lock ──> nix-hk ──┐
 - `itok` & `microlith` declare `rust-version = "1.96"` today. Accident of old pin `241313f4` (rustc 1.96.1), ⊥ real floor — itok's own manifest cites evidenced floor `Option::is_none_or` = **1.82**.
 - ∴ both → `rust-version = "1.95"`. Editions diverge: itok `2021`, microlith `2024` → unify `2024`.
 - ⊥ push 1.96 into nixos-26.05: stable branch freezes major versions; 1.95→1.96 = mass rebuild, rejected outside security fixes.
-- V20 fails loud until consumers move. Intended.
+- **policy**: ∀ repo consuming nix-hk ! declare `rust-version = "1.95"` ≡ pinned rustc. Decided 2026-08-14.
+- V20/V32 currently **⊥ enforced**. `assert-pins` checks THIS repo only (rev ≡ nixpkgs-lock, rustc ≡ 1.95.x). ⊥ job anywhere reads a consumer's `Cargo.toml` ∴ itok & microlith sit at `1.96` against a 1.95 pin & nothing fails. Same silent shape as the 1.96-vs-1.91 gap. Gate ships w/ T26/T27, ∈ each consumer's CI.
 - crate-pin drift (`blackbox/Cargo.toml` pins `microlith = "0.5"`, local `0.6.0`) ∉ this repo. Governed pins → `set-and-setting` or accepted. Died with nixpkgs-rust-lock; problem outlives its mechanism.
 
 ### build & CI
@@ -134,7 +135,7 @@ nixpkgs-lock ──> nix-hk ──┐
 - V29: ~~governed set explicit & closed~~ dead w/ nixpkgs-rust-lock
 - V30: ~~exact-pin bump = loop's job~~ dead w/ nixpkgs-rust-lock
 - V31: rustc used ≡ rustc ∈ pinned nixpkgs (**1.95.x**). ⊥ rust-overlay, ⊥ fenix, ⊥ `rust-toolchain.toml`, ⊥ 2nd nixpkgs. CI assert exact minor
-- V32: ∀ fleet Rust repo → `Cargo.toml` `rust-version` ≡ pinned rustc minor. Drift = gate fail. Nothing checked this before ∴ 1.96-vs-1.91 went unnoticed
+- V32: ∀ fleet Rust repo → `Cargo.toml` `rust-version` ≡ pinned rustc minor (**`1.95`** today). Drift = gate fail. Gate ! live ∈ each consumer's CI — nix-hk ⊥ see consumer manifests. ⊥ enforced yet (T26/T27); until then V32 = intent, ⊥ mechanism
 - V33: libgit2 vendored. ⊥ `LIBGIT2_NO_VENDOR`, ⊥ `libgit2` ∈ buildInputs. If a future pin ships libgit2 satisfying `libgit2-sys` req, switching = deliberate change + measured, ⊥ assumed
 - V34: `buildInputs`/`nativeBuildInputs` ≡ measured need. ∀ entry ! justified by a build failure without it. ⊥ copy upstream recipe unverified
 - V35: `main` build → ∀ tier-1 path ∈ cachix, asserted by querying `<hash>.narinfo` ≡ 200 from a **separate job** (`needs: build`). `cachix-action` pushes in its POST step & logs 403/failures WITHOUT failing the job ∴ neither a green build nor a green push step is evidence of a populated cache
@@ -169,8 +170,8 @@ T22|x|dead: cycle guard superseded by nixpkgs-lock leaf rule #17|V19
 T23|x|CI assert nixpkgs rev ≡ nixpkgs-lock rev. Tested local: both `9f78f44a` ✓|V13
 T24|x|folded into T38 — asserting 1.95.x implies ≥ 1.88.0|V17,V31
 T25|x|`docs/RUNBOOK.md`: bump order, new-release flow, rustc moves, cache-failure triage|V22
-T26|.|itok migrate: drop rev `241313f4…`, 2 inputs, hk from nix-hk, `rust-version = "1.95"`, edition `2024`|V6,V32,I.consumer
-T27|.|microlith migrate: same, `rust-version = "1.95"`|V6,V32,I.consumer
+T26|.|itok migrate: drop rev `241313f4…`, 2 inputs, hk from nix-hk, `rust-version = "1.95"`, edition `2024`, **+ CI assert `rust-version` ≡ pinned rustc**|V6,V32,I.consumer
+T27|.|microlith migrate: same, `rust-version = "1.95"`, **+ same CI assert**|V6,V32,I.consumer
 T28|x|decided: declare 4 sys, CI/cache tier-1 3, `x86_64-darwin` tier-2 eval-only|V23,V24
 T33|x|eval-only job for x86_64-darwin. Local run: ∀ 4 sys eval clean|V24
 T34|x|README tier table: which sys cached, which built local|V25
