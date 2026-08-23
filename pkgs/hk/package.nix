@@ -11,7 +11,7 @@
 
 rustPlatform.buildRustPackage (finalAttrs: {
   pname = "hk";
-  version = "1.55.0";
+  version = "1.56.1";
 
   __structuredAttrs = true;
 
@@ -19,10 +19,10 @@ rustPlatform.buildRustPackage (finalAttrs: {
     owner = "jdx";
     repo = "hk";
     tag = "v${finalAttrs.version}";
-    hash = "sha256-2rZhRdEvt5cAC5TrWQocgMIWhuNnCBBpjKIDE5IGNUc=";
+    hash = "sha256-sF32DyZ1dX9MkPQLWL761KglDGMenAV5ekw3vAorPYc=";
   };
 
-  cargoHash = "sha256-g5/F6pfvThY7S0NB0WDlpFguFBU/pH25T8dQH1WVgQA=";
+  cargoHash = "sha256-x/Cah3qF+oXI1mMSfz3rj3XbNIkb6u0gp/C8M2C9TFc=";
 
   # No buildInputs by design (SPEC V33, V34). The upstream recipe carries
   # `libgit2` and `openssl`; both are inert and were measured to be so:
