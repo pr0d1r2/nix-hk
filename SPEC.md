@@ -2,7 +2,7 @@
 
 ## §G goal
 
-Deliver current `hk` (v1.55.0) to **nixos 26.05** systems. 26.05 ships ⊥ hk (init landed master after branch-off) ∴ this repo IS the 26.05 hk provider.
+Deliver current `hk` (v1.58.1) to **nixos 26.05** systems. 26.05 ships ⊥ hk (init landed master after branch-off) ∴ this repo IS the 26.05 hk provider.
 
 Nix flake build for aarch64-darwin, x86_64-linux, aarch64-linux; push to cachix `pr0d1r2`; consumed prebuilt (`itok`, `microlith`, future, any 26.05 host), ⊥ local compile.
 
@@ -12,7 +12,7 @@ Built w/ rustc from same 26.05 pin (1.95.0) ∴ ∀ pr0d1r2 Rust repo → identi
 
 ### upstream hk
 
-- src: `github:jdx/hk` tag `v1.55.0` (tagged 2026-08-11).
+- src: `github:jdx/hk` tag `v1.58.1` (tagged 2026-09-05; latest 1.x — 2.x removed v1 config ∴ a separate, deliberate move).
 - hk = Rust. `edition = 2024`, `rust-version = 1.88.0` → pinned rustc ! ≥ 1.88.0.
 - pinned nixpkgs has **⊥ hk at all**. `hk: init at 1.48.0` landed nixpkgs master 2026-06-22, after `nixos-26.05` branch-off (~2026-05). `pkgs/by-name/hk/hk/package.nix` = 404 @ rev `9f78f44a`. Master recipe (1.54.0) = **template only**, ⊥ importable.
 - build deps (master 1.54.0 recipe): nativeBuildInputs `pkg-config`, `installShellFiles`, `usage`; buildInputs `libgit2`, `openssl`; nativeCheckInputs `gitMinimal`. Two of those inert — see below.
@@ -80,7 +80,7 @@ nixpkgs-lock ──> nix-hk ──┐
     nixpkgs.follows = "nixpkgs-lock/nixpkgs";
   };
   ```
-- flake: `packages.<sys>.hk` → hk 1.55.0 derivation
+- flake: `packages.<sys>.hk` → hk 1.58.1 derivation
 - flake: `packages.<sys>.default` ≡ `packages.<sys>.hk`
 - flake: `overlays.default` → adds `pkgs.hk`
 - flake: `checks.<sys>.hk` → build + test suite
@@ -97,13 +97,13 @@ nixpkgs-lock ──> nix-hk ──┐
 - cachix: substituter `https://pr0d1r2.cachix.org`, key `pr0d1r2.cachix.org-1:NfWjbhgAj41byXhCKiaE+av3Vnphm1fTezHXEGsiQIM=` (literal, read from nixpkgs-lock `flake.nix` `nixConfig`)
 - env: `CACHIX_AUTH_TOKEN` ! set in repo secrets. ! **per-cache token w/ WRITE** on `pr0d1r2` (`app.cachix.org/cache/pr0d1r2/settings/authtokens`), ⊥ personal token. Wrong scope → `403 You're not authorized to access binary cache pr0d1r2`, push fails, job stays green
 - cmd: `nix build .#hk` → `result/bin/hk`
-- cmd: `nix run .#hk -- --version` → stdout `hk 1.55.0`
+- cmd: `nix run .#hk -- --version` → stdout `hk 1.58.1`
 - cmd: `nix flake check --all-systems` → exit 0. Bare `nix flake check` ⊥ sufficient: silently omits systems the runner ⊥ build (`warning: The check omitted these incompatible systems: …`) ∴ tier-2 rots green
 - ci: `.github/workflows/build.yml` matrix {ubuntu-24.04, ubuntu-24.04-arm, macos-14}
 
 ## §V invariants
 
-- V1: `nix run .#hk -- --version` → contains `1.55.0`
+- V1: `nix run .#hk -- --version` → contains `1.58.1`
 - V2: ∀ sys ∈ {aarch64-darwin, x86_64-linux, aarch64-linux} → `packages.<sys>.hk` evals & builds
 - V3: `srcHash` & `cargoHash` = real literal sha256. ⊥ `lib.fakeHash` on `main`
 - V4: `flake.lock` committed & `nix flake check` pass in CI

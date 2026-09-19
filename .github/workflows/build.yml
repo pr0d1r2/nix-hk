@@ -58,8 +58,8 @@ jobs:
           got="$(./result/bin/hk --version)"
           echo "$got"
           case "$got" in
-            *1.55.0*) ;;
-            *) echo "::error::expected hk 1.55.0, got: $got" >&2; exit 1 ;;
+            *1.58.1*) ;;
+            *) echo "::error::expected hk 1.58.1, got: $got" >&2; exit 1 ;;
           esac
 
 
