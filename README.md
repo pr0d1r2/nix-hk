@@ -1,6 +1,6 @@
 # nix-hk
 
-[`hk`](https://hk.jdx.dev) 1.55.0 as a Nix flake, built against the same nixpkgs
+[`hk`](https://hk.jdx.dev) 1.58.1 as a Nix flake, built against the same nixpkgs
 the rest of the pr0d1r2 fleet pins, and served prebuilt from cachix.
 
 ## Why this repo exists
@@ -17,9 +17,9 @@ cache entry, and one place to bump.
 
 Maybe not, and that is fine.
 
-**On nixos-unstable:** just use `pkgs.hk`. nixpkgs master picked up 1.55.0 on
-2026-08-13, so unstable has the same version this repo builds, already cached by
-cache.nixos.org. Nothing here beats that.
+**On nixos-unstable:** just use `pkgs.hk`. nixpkgs master picked up hk on
+2026-08-13 and follows upstream on its own schedule, cached by cache.nixos.org.
+Nothing here beats that.
 
 **On 26.05, one machine, no shared cache:** adding nixpkgs-unstable as a second
 input and taking `hk` from it is a legitimate choice. It costs you a second
@@ -63,7 +63,7 @@ directly.
 
 ```
 nix build github:pr0d1r2/nix-hk#hk
-nix run   github:pr0d1r2/nix-hk#hk -- --version   # hk 1.55.0
+nix run   github:pr0d1r2/nix-hk#hk -- --version   # hk 1.58.1
 ```
 
 ## Binary cache
