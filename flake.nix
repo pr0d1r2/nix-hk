@@ -51,6 +51,7 @@
 
       checks = forAllSystems (pkgs: {
         hk = pkgs.callPackage ./pkgs/hk/package.nix { };
+        state-dir = pkgs.callPackage ./tests/state-dir.nix { };
       });
 
       devShells = forAllSystems (pkgs: {
@@ -59,6 +60,7 @@
             (pkgs.callPackage ./pkgs/hk/package.nix { })
             pkgs.nixfmt
             pkgs.statix
+            pkgs.bats
           ];
         };
       });
