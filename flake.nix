@@ -56,7 +56,7 @@
       devShells = forAllSystems (pkgs: {
         default = pkgs.mkShell {
           packages = [
-            (pkgs.callPackage ./pkgs/hk/package.nix { })
+            pkgs.callPackage ./pkgs/hk/package.nix { }
             pkgs.nixfmt
             pkgs.statix
           ];
