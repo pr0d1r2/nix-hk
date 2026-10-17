@@ -71,9 +71,9 @@ jobs:
           upstream and \`nix build .#hk\` succeeded before this PR was opened,
           so the version claim is backed by a build rather than a tag name.
 
-          The test skip list is not revalidated automatically -- if upstream
-          renamed or fixed any of the eight skipped tests, that shows up as a
-          check failure here, which is the intended place to notice it."
+          The full test suite runs with no skips (V9); a test upstream broke
+          shows up as a build failure here, which is the intended place to
+          notice it."
           git push --force -u origin "$branch"
           gh pr create --base main --head "$branch" \
             --title "feat: hk $V" \
@@ -83,6 +83,6 @@ jobs:
 
           Worth checking by hand before merging:
 
-          - the eight entries in \`checkFlags\` still name tests that exist upstream — a renamed skip silently stops skipping, or silently skips nothing
+          - any skip added to \`checkFlags\` carries its reason; CI's \`scripts/check-skips.sh\` asserts each one names a test that exists (V9)
           - the version in \`README.md\` and \`SPEC.md\` §G, which are prose and not updated by the script
           - \`Cargo.lock\` changes that add a system dependency, since this derivation deliberately carries no \`buildInputs\`"
