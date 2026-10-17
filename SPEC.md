@@ -192,8 +192,9 @@ T38|x|CI assert pinned rustc ≡ 1.95.x. Tested local: `rustc 1.95.0` ✓|V31
 T39|x|proved hk 1.55.0 + itok (`--all-features`) + microlith compile on rustc 1.95.0 (aarch64-darwin). `hk --version` → `hk 1.55.0`|V31,V32
 T40|x|measured: cargo+rustc alone build hk. ⊥ cmake, ⊥ pkg-config, ⊥ libgit2, ⊥ openssl. Encoded §C|V34
 T46|x|hk 2.7.0: per-repo state upstream (jdx/hk#1705) supersedes local wrapper (#9, closed unmerged). pkl generated ∈ preBuild, `HK_REQUIRE_EMBEDDED_PKL=1`, sandbox HOME + git repo ∈ preCheck. Full suite ✓ aarch64-darwin|V1,V34
-T47|.|consumers (sherd, itok, microlith, then pklith): `nix flake update nix-hk` + re-vendor 2.7.0 `Config.pkl` (pklith V28) + strict-Pkl fixes + `stage = true` on hooks relying on 1.x staging|V1
+T47|x|consumers on hk 2.7.0: sherd#135, itok#65, microlith#106, pklith#57. ∀: strict-Pkl fix commit (valid on 1.58.1 too) + 2.7.0 `Config.pkl` + `stage = true` on `fix`/`refresh`. consumer `nix-hk` follows ITS OWN `nixpkgs-lock` ∴ nix-hk alone → hk rebuilt vs old nixpkgs (`7axazlw3…`, ⊥ cached); nix-hk + nixpkgs-lock together → cached `8gc7idcn…` (measured sherd). Full gate ✓ ∀ 4 under 2.7.0, CI ✓ ∀ PR|V1
 T48|x|dropped all 8 inherited skips (nixpkgs recipe + upstream `default.nix`). Measured 2.7.0 w/ generated pkl (B7) + preCheck env: 842 passed, 0 failed, 0 filtered (aarch64-darwin). All 8 pass once generated pkl present; whether empty `BUILTINS_META` was their original failure ⊥ measured (stated reason was "detect toolchains on the host"). `check-skips.sh` accepts ∅, still fails on unparsable `--skip=`|V9
+T49|.|rest of fleet on hk 2.7.0. Loop-tended (topic `hallucinogen-tended`) → issues: xenolith#55, characterminator#21, rekall#43. Untended → by hand: congestimancer, pipelith, claudinix. nix-fakecloud ⊥ `hk.pkl` ∴ ⊥ target. Measured per repo before filing: 1.58.1 schema refused by 2.7.0 (`union property 'command' has no selected default`); characterminator (8) & rekall (377) `///` lines before entries/properties ⊥ valid Pkl. Loop pin refresh bumps ∀ inputs incl nix-hk, accepts on devShell eval only ∴ w/o this the gate breaks on the next pin PR|V1
 
 ## §B bugs
 
