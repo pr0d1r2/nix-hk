@@ -7,6 +7,8 @@
   versionCheckHook,
   gitMinimal,
   usage,
+  python3,
+  pkl,
 }:
 
 rustPlatform.buildRustPackage (finalAttrs: {
@@ -42,10 +44,25 @@ rustPlatform.buildRustPackage (finalAttrs: {
   # `usage` is the one upstream input that survives measurement: `hk completion
   # <shell>` shells out to the `usage` binary at postInstall time. A plain
   # `cargo build` never reaches that, which is exactly how it looked droppable.
+  #
+  # `python3` and `pkl` generate `pkl/Builtins.pkl` and `pkl/builtins_meta.json`
+  # before cargo runs. Upstream gitignores both (`mise run pkl:gen` makes them),
+  # so the tag tarball has neither. Without them build.rs embeds an empty pkl
+  # package, so hk fetches its own config schema over the network at run time,
+  # and `BUILTINS_META` has no project indicators, so `hk init` detects nothing.
+  # The build still succeeds; HK_REQUIRE_EMBEDDED_PKL makes it fail instead.
   nativeBuildInputs = [
     installShellFiles
     usage
+    python3
+    pkl
   ];
+
+  env.HK_REQUIRE_EMBEDDED_PKL = "1";
+
+  preBuild = ''
+    python3 scripts/gen_builtins.py
+  '';
 
   # Some tests build fixture repositories by shelling out to git.
   nativeCheckInputs = [ gitMinimal ];
