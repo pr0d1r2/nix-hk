@@ -35,8 +35,12 @@ jobs:
           name: pr0d1r2
           skipPush: true
 
+      # `shell: bash` runs with pipefail; the default `bash -e {0}` does not, so
+      # a failed bump (a build that does not pass) exited with tee's 0, the job
+      # went green and no PR opened (B8).
       - name: Bump to latest upstream tag
         id: bump
+        shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
         run: ./scripts/bump-hk.sh | tee -a "$GITHUB_OUTPUT"
