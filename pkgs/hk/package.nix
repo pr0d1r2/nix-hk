@@ -67,6 +67,14 @@ rustPlatform.buildRustPackage (finalAttrs: {
   # Some tests build fixture repositories by shelling out to git.
   nativeCheckInputs = [ gitMinimal ];
 
+  # The sandbox HOME is read-only, and hk's cache tests write under it. The
+  # step_context tests call `Git::new()` on the current directory, which in
+  # the sandbox is an unpacked tarball, not a repository.
+  preCheck = ''
+    export HOME="$(mktemp -d)"
+    git init -q
+  '';
+
   # Skipped upstream in both the nixpkgs recipe and hk's own default.nix: these
   # detect toolchains on the host or read ambient config, so they are not
   # meaningful in a sandbox.
