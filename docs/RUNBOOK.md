@@ -34,9 +34,10 @@ on that PR is confirmation, not discovery.
 
 Three things the script cannot check, worth doing by hand on the PR:
 
-- **The eight `checkFlags` skips.** If upstream renamed or fixed one, the skip
-  silently stops matching. Nothing fails — you just start skipping a test that
-  no longer exists, or running one that was skipped for a reason.
+- **New `checkFlags` skips.** There are none today: every test runs in the
+  sandbox. If a release needs one, give it an inline reason; `check-skips.sh`
+  then asserts it still names a real test, because `--skip=<gone>` is accepted
+  silently.
 - **Version in prose.** `README.md` and `SPEC.md` §G carry the version as text.
 - **New system dependencies.** This derivation carries no `buildInputs` on
   purpose. A `Cargo.lock` that gains an `-sys` crate may need one, and the build
