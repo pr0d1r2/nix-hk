@@ -1,6 +1,6 @@
 # nix-hk
 
-[`hk`](https://hk.jdx.dev) 1.58.1 as a Nix flake, built against the same nixpkgs
+[`hk`](https://hk.jdx.dev) 2.7.0 as a Nix flake, built against the same nixpkgs
 the rest of the pr0d1r2 fleet pins, and served prebuilt from cachix.
 
 ## Why this repo exists
@@ -63,7 +63,7 @@ directly.
 
 ```
 nix build github:pr0d1r2/nix-hk#hk
-nix run   github:pr0d1r2/nix-hk#hk -- --version   # hk 1.58.1
+nix run   github:pr0d1r2/nix-hk#hk -- --version   # hk 2.7.0
 ```
 
 ## Binary cache
