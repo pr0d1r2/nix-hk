@@ -65,8 +65,9 @@ jobs:
           set -euo pipefail
           short="${AFTER:0:12}"
           branch="pins/nixpkgs-$short"
-          if git ls-remote --exit-code --heads origin "$branch" >/dev/null 2>&1; then
-            echo "branch $branch already exists, nothing to do"
+          # On the PR, not the branch, as in upstream.yml (B9).
+          if [ -n "$(gh pr list --head "$branch" --state open --json number --jq '.[].number')" ]; then
+            echo "PR for $branch already open, nothing to do"
             exit 0
           fi
           rustc="$(nix eval --raw "github:NixOS/nixpkgs/$AFTER#rustc.version")"
@@ -78,7 +79,7 @@ jobs:
 
           rustc on the new pin is $rustc. hk built against it before this PR
           was opened."
-          git push -u origin "$branch"
+          git push --force -u origin "$branch"
           gh pr create --base main --head "$branch" \
             --title "build: follow nixpkgs-lock to $short" \
             --body "nixpkgs-lock moved \`$BEFORE\` -> \`$AFTER\`.
