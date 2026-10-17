@@ -83,7 +83,7 @@ EOF
 @test "outside a repository: nothing is set, hk keeps its own default" {
   mkdir -p "$tmp/plain"
   cd "$tmp/plain"
-  run "$wrapper"
+  GIT_CEILING_DIRECTORIES="$tmp" run "$wrapper"
   [ "$status" -eq 0 ]
   [ "${lines[0]}" = "state=<unset>" ]
   [ "${lines[1]}" = "output=<unset>" ]
