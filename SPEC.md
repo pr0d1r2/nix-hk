@@ -102,7 +102,7 @@ nixpkgs-lock ──> nix-hk ──┐
   ```
 - cachix: substituter `https://pr0d1r2.cachix.org`, key `pr0d1r2.cachix.org-1:NfWjbhgAj41byXhCKiaE+av3Vnphm1fTezHXEGsiQIM=` (literal, read from nixpkgs-lock `flake.nix` `nixConfig`)
 - env: `CACHIX_AUTH_TOKEN` ! set in repo secrets. ! **per-cache token w/ WRITE** on `pr0d1r2` (`app.cachix.org/cache/pr0d1r2/settings/authtokens`), ⊥ personal token. Wrong scope → `403 You're not authorized to access binary cache pr0d1r2`, push fails, job stays green
-- env: repo setting "Allow GitHub Actions to create and approve pull requests" ! on. off → `upstream.yml` & `update-pins.yml` push their branch, then `gh pr create` is refused (B9)
+- ⊥ workflow pushes a branch or opens a PR. repo setting "Allow GitHub Actions to create and approve pull requests" OFF by intent; bumps arrive by hand or from the loop (B9)
 - cmd: `nix build .#hk` → `result/bin/hk`
 - cmd: `nix run .#hk -- --version` → stdout `hk 2.7.0`
 - cmd: `nix flake check --all-systems` → exit 0. Bare `nix flake check` ⊥ sufficient: silently omits systems the runner ⊥ build (`warning: The check omitted these incompatible systems: …`) ∴ tier-2 rots green
@@ -170,7 +170,7 @@ T17|~|cache serves real content: narinfo 200 + `Sig: pr0d1r2.cachix.org-1:` ∀ 
 T41|x|`verify-cache` job green on `main`, added to required checks|V35
 T42|x|`scripts/check-skips.sh` asserts ∀ skip → `fn <name>` ∈ `.#hk.src`. Wired into `lint` job. Negative-tested: bogus skip → exit 1|V9
 T43|x|CI `lint` job: shellcheck + actionlint + skip validator|—
-T19|x|`upstream.yml` cron `20 6 * * *` + `scripts/bump-hk.sh` (resolves both hashes, builds, opens PR). `--force` mode verified: hashes reproduce, ⊥ diff|—
+T19|x|`upstream.yml` cron `20 6 * * *` + `scripts/bump-hk.sh` (resolves both hashes, builds; red when a newer hk exists, ⊥ PR since 2026-10-17, B9). `--force` mode verified: hashes reproduce, ⊥ diff|—
 T20|x|dead: `nixpkgs-rust-lock` repo never created, layer removed|—
 T21|x|dead w/ T20|—
 T22|x|dead: cycle guard superseded by nixpkgs-lock leaf rule #17|V19
@@ -208,4 +208,4 @@ B5|2026-08-13|Token set but scoped wrong → `403 Forbidden` ∀ push, `Post Run
 B6|2026-10-15|hk state global ∀ repo: `output.log` from repo B shown after repo A's pre-push failure; patch rotation by cwd-basename prefix deleted other repos' backups. Upstream design. Local wrapper (#9) dropped: fixed upstream ∈ 2.7.0 (jdx/hk#1705)|—
 B7|2026-10-17|Built hk ⊥ generated pkl (`Builtins.pkl`, `builtins_meta.json` gitignored upstream ∴ ∉ tag tarball): empty embedded pkl package, `hk init` detects nothing, build green. 1.58.1 tag tarball ALSO lacks both (inspected) ∴ every hk this repo shipped had it|V34
 B8|2026-10-17|`upstream.yml` green daily, ⊥ PR. `./scripts/bump-hk.sh | tee -a "$GITHUB_OUTPUT"` under default `bash -e {0}` (⊥ pipefail): 2.x build failed (18 tests), tee exit 0 → step green, `NEW_VERSION` unset → PR step skipped. 5 runs inspected 2026-10-12..16: `Cannot build hk-2.7.0.drv`, conclusion success|`shell: bash` (pipefail) on the bump step
-B9|2026-10-17|`upstream.yml` & `update-pins.yml` skipped a version when its BRANCH existed. repo setting `can_approve_pull_request_reviews: false` → `gh pr create` refused (`GitHub Actions is not permitted to create or approve pull requests`) AFTER the push ∴ branch w/o PR, ∀ later run "nothing to do". 7 orphan `upstream/hk-*` (1.56.0..2.1.0) & 43 orphan `pins/nixpkgs-*` left. PRs from bots ! repo setting "Allow GitHub Actions to create and approve pull requests"|key on an OPEN PR, `push --force` the branch
+B9|2026-10-17|`upstream.yml` & `update-pins.yml` pushed a branch per new version, then `gh pr create` was refused (Actions may not open PRs here, by intent) ∴ branch w/o PR; both keyed idempotency on the branch ∴ ∀ later run "nothing to do". left 7 orphan `upstream/hk-*` (1.56.0..2.1.0) & 43 `pins/nixpkgs-*`. #13 keyed on an open PR & called the setting a requirement: wrong, the setting stays off|`update-pins.yml` dropped (loop); `upstream.yml` detection only, `contents: read`, red on a newer hk
