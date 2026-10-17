@@ -185,7 +185,7 @@ T34|x|README tier table: which sys cached, which built local|V25
 T29|x|decided: crate-pin governance ∉ this repo (→ set-and-setting or accepted drift)|—
 T30|x|nix-hk devShell consumes pinned-nixpkgs gates, dogfoods own hk|I.flake,V20
 T31|x|dead: bootstrap swap unneeded, `nixpkgs-lock` is the final input|V18
-T32|x|`update-pins.yml` cron `50 6 * * *`, builds against new pin before opening PR|V22
+T32|x|~~`update-pins.yml` cron `50 6 * * *`, builds against new pin before opening PR~~ dropped 2026-10-17: pin refresh = hallucinogen loop (`pin-refresh`, topic `hallucinogen-tended`), as pklith #15|V22
 T35|x|dead: itok publish decision was crate-pin governance|—
 T36|x|dead as standalone; edition unify folded into T26|—
 T37|x|dead: `blackbox` microlith drift ∉ this repo|—
