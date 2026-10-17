@@ -12,14 +12,20 @@ Built w/ rustc from same 26.05 pin (1.95.0) ∴ ∀ pr0d1r2 Rust repo → identi
 
 ### upstream hk
 
-- src: `github:jdx/hk` tag `v1.58.1` (tagged 2026-09-05; latest 1.x — 2.x removed v1 config ∴ a separate, deliberate move).
+- src: `github:jdx/hk` tag `v2.7.0` (released 2026-10-16). 1.x held at 1.58.1 until 2026-10-17 bc 2.0 removed v1 config = fleet-wide `hk.pkl` migration (#7). Moved bc per-repo state (jdx/hk#1705, fixes #1703) ships ONLY ∈ 2.7.0, ⊥ 1.x backport.
+- 2.x evaluator (embedded `pklr`) = strict as `pkl` CLI. 1.58.1 accepted invalid Pkl: `///` doc comment before a mapping entry, `\`` escape. Consumers carrying those break on bump ∴ consumer PR fixes them (T47).
+- 2.x stages fixed files ONLY ∈ `pre-commit`. `hk fix` & custom hooks ⊥ stage unless `stage = true`.
+- per-repo state (2.7.0): `output.log` + `hk.log` ∈ `<git-dir>/hk/`, patches ∈ `<common-git-dir>/hk/patches/`; `core.sharedRepository` or outside repo → platform state dir. `HK_STATE_DIR` set → ALL state there (old behaviour).
 - hk = Rust. `edition = 2024`, `rust-version = 1.88.0` → pinned rustc ! ≥ 1.88.0.
 - pinned nixpkgs has **⊥ hk at all**. `hk: init at 1.48.0` landed nixpkgs master 2026-06-22, after `nixos-26.05` branch-off (~2026-05). `pkgs/by-name/hk/hk/package.nix` = 404 @ rev `9f78f44a`. Master recipe (1.54.0) = **template only**, ⊥ importable.
 - build deps (master 1.54.0 recipe): nativeBuildInputs `pkg-config`, `installShellFiles`, `usage`; buildInputs `libgit2`, `openssl`; nativeCheckInputs `gitMinimal`. Two of those inert — see below.
 - **libgit2 ! vendored.** `git2 = "0.21"` w/ feature `vendored-libgit2`; `libgit2-sys 0.18.7+1.9.6` demands `libgit2 >= 1.9.6, < 1.10.0`. Pin ships **1.9.3**, nixpkgs master **1.9.4** → system link IMPOSSIBLE both places. Upstream recipe's `buildInputs.libgit2` = vestigial; nothing sets `LIBGIT2_NO_VENDOR` ∴ nixpkgs already vendors, silently. Measured: `LIBGIT2_NO_VENDOR=1` → hard panic `no compatible system libgit2 could be found`.
 - **openssl inert too.** hk `Cargo.lock` has ⊥ `openssl-sys`, ⊥ `native-tls`. TLS = rustls (`rustls-platform-verifier`, `hyper-rustls`, `reqwest 0.13`). Built binary: ⊥ dynamic `libgit2`/`libssl`/`libcrypto` (otool). `buildInputs.openssl` = cargo-cult, drop.
 - **measured minimal build** (T40, aarch64-darwin): `cargo` + `rustc` alone → `cargo build --release --bin hk` succeeds, 2m30s. ⊥ `pkg-config`, ⊥ `cmake`, ⊥ `libgit2`, ⊥ `openssl`, ⊥ `usage` needed. `aws-lc-sys` (rustls provider, pulls `cmake 0.1.58` crate) builds via its `cc` path, ⊥ cmake binary.
-- ∴ derivation inputs, settled by sandbox build: nativeBuildInputs `installShellFiles` + **`usage`**; nativeInstallCheckInputs `versionCheckHook`; nativeCheckInputs `gitMinimal`; buildInputs **∅**.
+- **generated pkl ∉ tarball.** `pkl/Builtins.pkl` + `pkl/builtins_meta.json` gitignored upstream (`mise run pkl:gen` → `scripts/gen_builtins.py`). Missing → build.rs embeds EMPTY pkl package (hk fetches own schema over network @ run time) & `BUILTINS_META` has ⊥ project indicators (`hk init` detects nothing). Build still green ∴ silent. Measured on 2.7.0: 12 `cli::init::detector` tests fail w/o them.
+- ∴ `preBuild` runs `python3 scripts/gen_builtins.py`; `HK_REQUIRE_EMBEDDED_PKL=1` → missing module = build failure. Measured: ⊥ preBuild → `these pkl modules are missing: Builtins.pkl`; ⊥ `pkl` → `FileNotFoundError: ... 'pkl'`. Runtime closure = hk + libiconv, ⊥ python3, ⊥ pkl.
+- sandbox test env (2.7.0): `HOME` read-only → cache tests fail (`Read-only file system`); cwd ⊥ repo → `step_context` tests fail (`failed to find git repository`). ∴ `preCheck` sets `HOME=$(mktemp -d)` + `git init -q`, ⊥ skips.
+- ∴ derivation inputs, settled by sandbox build: nativeBuildInputs `installShellFiles` + **`usage`** + `python3` + `pkl` (build-time only); nativeInstallCheckInputs `versionCheckHook`; nativeCheckInputs `gitMinimal`; buildInputs **∅**.
 - `usage` looked droppable, is NOT. `hk completion bash|fish|zsh` execs `usage` binary @ postInstall → `installShellCompletion` wrote 3 zero-size files & aborted. Plain `cargo build` ⊥ reach postInstall ∴ minimal-build measurement missed it. Lesson: measure the phase, ⊥ the compile.
 - build script = `build = "build/mod.rs"` (⊥ root `build.rs`). build-deps `codegen 0.3`, `indexmap 2`, `serde 1`, `serde_json 1`, `toml 1`. Ran offline ✓. Vendored libgit2 C source ships inside crate ∴ V8 holds.
 - upstream hk ships own `default.nix` + `flake.nix` (unstable + flake-utils). Same 8-test skip list as nixpkgs recipe → T8 list corroborated by 2 sources. Same inert `libgit2`/`openssl`. ⊥ consume upstream flake: 2 extra inputs, unstable nixpkgs, breaks V18.
@@ -185,6 +191,8 @@ T37|x|dead: `blackbox` microlith drift ∉ this repo|—
 T38|x|CI assert pinned rustc ≡ 1.95.x. Tested local: `rustc 1.95.0` ✓|V31
 T39|x|proved hk 1.55.0 + itok (`--all-features`) + microlith compile on rustc 1.95.0 (aarch64-darwin). `hk --version` → `hk 1.55.0`|V31,V32
 T40|x|measured: cargo+rustc alone build hk. ⊥ cmake, ⊥ pkg-config, ⊥ libgit2, ⊥ openssl. Encoded §C|V34
+T46|x|hk 2.7.0: per-repo state upstream (jdx/hk#1705) supersedes local wrapper (#9, closed unmerged). pkl generated ∈ preBuild, `HK_REQUIRE_EMBEDDED_PKL=1`, sandbox HOME + git repo ∈ preCheck. Full suite ✓ aarch64-darwin|V1,V34
+T47|.|consumers (sherd, itok, microlith, then pklith): `nix flake update nix-hk` + re-vendor 2.7.0 `Config.pkl` (pklith V28) + strict-Pkl fixes + `stage = true` on hooks relying on 1.x staging|V1
 
 ## §B bugs
 
@@ -194,3 +202,5 @@ B2|2026-08-13|§C listed `openssl` buildInput copied from upstream recipe. hk = 
 B3|2026-08-13|First `main` CI run green, cache still empty (404). `cachix-action` no-ops on empty `authToken`, exits 0 → push step ⊥ evidence. V6 would read satisfied while ∀ consumer rebuilds from source|V35
 B4|2026-08-13|V35 assert placed INSIDE build job → runs @ 07:22:40, cachix post-push @ 07:22:41 ∴ 404 even when push would succeed. Own bug. ∴ moved to `verify-cache` job, `needs: build`|V35
 B5|2026-08-13|Token set but scoped wrong → `403 Forbidden` ∀ push, `Post Run cachix-action` STILL reported success. Silent-empty-cache confirmed real, ⊥ hypothetical|V35
+B6|2026-10-15|hk state global ∀ repo: `output.log` from repo B shown after repo A's pre-push failure; patch rotation by cwd-basename prefix deleted other repos' backups. Upstream design. Local wrapper (#9) dropped: fixed upstream ∈ 2.7.0 (jdx/hk#1705)|—
+B7|2026-10-17|Built hk ⊥ generated pkl (`Builtins.pkl`, `builtins_meta.json` gitignored upstream ∴ ∉ tag tarball): empty embedded pkl package, `hk init` detects nothing, build green. 1.58.1 tag tarball ALSO lacks both (inspected) ∴ every hk this repo shipped had it|V34

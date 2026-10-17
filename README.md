@@ -137,3 +137,22 @@ are deliberately absent, each verified by building without it:
 
 `usage` *is* required, despite looking droppable: `hk completion <shell>` execs
 it during `postInstall`.
+
+`python3` and `pkl` are build-time only. hk's `pkl/Builtins.pkl` and
+`pkl/builtins_meta.json` are generated files that upstream gitignores, so the
+release tarball has neither. Without them the build still succeeds, but the
+binary embeds no copy of hk's own pkl package (hk then downloads it at run
+time) and `hk init` detects no builtins. `preBuild` runs upstream's generator,
+and `HK_REQUIRE_EMBEDDED_PKL=1` turns a missing module into a build failure.
+Neither tool is in the runtime closure, which is hk and libiconv only.
+
+## State directory
+
+Since 2.7.0 hk keeps its state in the repository's git dir: `output.log` and
+`hk.log` in `<git-dir>/hk/` (one per checkout) and stash backup patches in
+`<common-git-dir>/hk/patches/` (shared by linked worktrees). Before that every
+repository on a machine shared `~/.local/state/hk`, so the `See ... for full
+command output` line after a failed hook could point at another repository's
+failure ([jdx/hk#1703](https://github.com/jdx/hk/issues/1703), fixed by
+[jdx/hk#1705](https://github.com/jdx/hk/pull/1705)). Old files in
+`~/.local/state/hk` are left in place and no longer read.
