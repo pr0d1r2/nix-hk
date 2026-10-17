@@ -28,9 +28,11 @@ to prevent.
 
 ## A new hk release appears
 
-Automated. `upstream.yml` polls `jdx/hk` at 06:20 daily, and
-`scripts/bump-hk.sh` resolves both hashes and builds before a PR is opened. CI
-on that PR is confirmation, not discovery.
+Detected, not automated. `upstream.yml` polls `jdx/hk` at 06:20 daily;
+`scripts/bump-hk.sh` resolves both hashes and builds, and the job goes red
+naming the new version. No workflow here opens PRs. Make the bump by hand:
+run `scripts/bump-hk.sh` locally, commit, open the PR. CI on that PR is
+confirmation, not discovery.
 
 Three things the script cannot check, worth doing by hand on the PR:
 

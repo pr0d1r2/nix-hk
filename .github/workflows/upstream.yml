@@ -1,7 +1,9 @@
 name: upstream
 
-# Poll jdx/hk for a new release and open a PR that bumps to it, hashes already
-# resolved and the build already proven. Pull model on purpose: no cross-repo
+# Poll jdx/hk for a new release and prove it builds here, hashes resolved.
+# Detection only: the job goes red when a newer hk exists (or fails to build),
+# and a person or the loop makes the bump. No workflow in this repository
+# pushes a branch or opens a PR (§C). Pull model on purpose: no cross-repo
 # token, nothing upstream needs to know we exist.
 on:
   schedule:
@@ -13,8 +15,7 @@ concurrency:
   cancel-in-progress: false
 
 permissions:
-  contents: write
-  pull-requests: write
+  contents: read
 
 jobs:
   bump:
@@ -28,8 +29,7 @@ jobs:
             experimental-features = nix-command flakes
             accept-flake-config = true
 
-      # Read-only here. The push happens on the resulting PR's own CI run, once
-      # a human has looked at it.
+      # Read-only: nothing built here is pushed.
       - uses: cachix/cachix-action@v16
         with:
           name: pr0d1r2
@@ -37,7 +37,7 @@ jobs:
 
       # `shell: bash` runs with pipefail; the default `bash -e {0}` does not, so
       # a failed bump (a build that does not pass) exited with tee's 0, the job
-      # went green and no PR opened (B8).
+      # went green and nothing was reported (B8).
       - name: Bump to latest upstream tag
         id: bump
         shell: bash
@@ -45,44 +45,12 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: ./scripts/bump-hk.sh | tee -a "$GITHUB_OUTPUT"
 
-      - name: Open PR
+      # Red, not a PR: the bump is made by hand or by the loop, where review
+      # happens. The message says exactly what to run.
+      - name: Report a newer hk
         if: steps.bump.outputs.NEW_VERSION != ''
         env:
-          GH_TOKEN: ${{ github.token }}
           V: ${{ steps.bump.outputs.NEW_VERSION }}
         run: |
-          set -euo pipefail
-          branch="upstream/hk-$V"
-          # Idempotent on the PR, not the branch: a PR for this version may
-          # already be open from an earlier run that nobody has merged yet. A
-          # branch alone is not one; an earlier run can push it and then fail
-          # to open the PR, and keying on it skipped that version forever (B9).
-          if [ -n "$(gh pr list --head "$branch" --state open --json number --jq '.[].number')" ]; then
-            echo "PR for $branch already open, nothing to do"
-            exit 0
-          fi
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git switch -c "$branch"
-          git add pkgs/hk/package.nix
-          git commit -m "feat: hk $V
-
-          Bumped by scripts/bump-hk.sh. Both hashes were resolved from
-          upstream and \`nix build .#hk\` succeeded before this PR was opened,
-          so the version claim is backed by a build rather than a tag name.
-
-          The full test suite runs with no skips (V9); a test upstream broke
-          shows up as a build failure here, which is the intended place to
-          notice it."
-          git push --force -u origin "$branch"
-          gh pr create --base main --head "$branch" \
-            --title "feat: hk $V" \
-            --body "Automated bump to hk \`$V\`.
-
-          \`scripts/bump-hk.sh\` resolved \`srcHash\` and \`cargoHash\` and built the result before opening this PR, so CI here is confirmation rather than discovery.
-
-          Worth checking by hand before merging:
-
-          - any skip added to \`checkFlags\` carries its reason; CI's \`scripts/check-skips.sh\` asserts each one names a test that exists (V9)
-          - the version in \`README.md\` and \`SPEC.md\` §G, which are prose and not updated by the script
-          - \`Cargo.lock\` changes that add a system dependency, since this derivation deliberately carries no \`buildInputs\`"
+          echo "::error::hk $V is released and builds here; bump with scripts/bump-hk.sh, then update README.md and SPEC.md §G"
+          exit 1
