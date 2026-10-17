@@ -12,11 +12,8 @@ name: CI
 # Node.js 20 and fails on Node.js 24 runners (B8/B10); disable it
 # with cachix-cache: "" and set up cachix separately if needed.
 #
-# Materialized configs (.markdownlint.yml, .yamllint.yml) are
-# gitignored (V22) and must be synced before hooks run. The sync
-# pre-step builds packages.setting and copies configs into the
-# workspace. The CI action re-checks-out tracked files but preserves
-# untracked (gitignored) files, so synced configs survive.
+# This flake exposes no `setting` package and gitignores no materialized
+# configs, so there is no config-sync pre-step (B10).
 
 jobs:
   build-linux:
@@ -27,10 +24,6 @@ jobs:
         with:
           extra_nix_config: |
             access-tokens = github.com=${{ secrets.GITHUB_TOKEN }}
-      - name: Sync materialized configs
-        run: |
-          setting_pkg="$(nix build .#setting --print-out-paths --no-link)"
-          "$setting_pkg/bin/sync-setting" .
       - uses: pr0d1r2/nix-lefthook-ci-action@ce9a118b05e90e186dba48a82067adeed185f7d4
         with:
           devshell: "default"
@@ -51,10 +44,6 @@ jobs:
         with:
           extra_nix_config: |
             access-tokens = github.com=${{ secrets.GITHUB_TOKEN }}
-      - name: Sync materialized configs
-        run: |
-          setting_pkg="$(nix build .#setting --print-out-paths --no-link)"
-          "$setting_pkg/bin/sync-setting" .
       - uses: pr0d1r2/nix-lefthook-ci-action@ce9a118b05e90e186dba48a82067adeed185f7d4
         with:
           devshell: "default"
@@ -75,10 +64,6 @@ jobs:
         with:
           extra_nix_config: |
             access-tokens = github.com=${{ secrets.GITHUB_TOKEN }}
-      - name: Sync materialized configs
-        run: |
-          setting_pkg="$(nix build .#setting --print-out-paths --no-link)"
-          "$setting_pkg/bin/sync-setting" .
       - uses: pr0d1r2/nix-lefthook-ci-action@ce9a118b05e90e186dba48a82067adeed185f7d4
         with:
           devshell: "default"
