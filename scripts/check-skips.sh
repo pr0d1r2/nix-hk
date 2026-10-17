@@ -28,7 +28,16 @@ while IFS= read -r line; do
 "
 done < <(sed -n 's/^    "--skip=\(.*\)"$/\1/p' "$pkg")
 count="$(printf '%s' "$skips" | grep -c . || true)"
-[ "$count" -gt 0 ] || { echo "no --skip entries found in $pkg" >&2; exit 1; }
+if [ "$count" -eq 0 ]; then
+  # An empty list is fine; a `--skip=` the pattern above failed to parse is not,
+  # because then this script would pass while checking nothing.
+  if grep -qF -- '--skip=' "$pkg"; then
+    echo "$pkg has --skip entries this script cannot parse" >&2
+    exit 1
+  fi
+  echo "no --skip entries in $pkg; nothing to check" >&2
+  exit 0
+fi
 echo "checking $count skip entries" >&2
 
 rc=0

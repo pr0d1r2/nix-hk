@@ -117,7 +117,7 @@ nixpkgs-lock ──> nix-hk ──┐
 - V6: consumer w/ substituter configured → hk fetched, ⊥ `building '/nix/store/...hk...drv'` in log
 - V7: derivation asserts version at install (`versionCheckHook`) → mismatch = build fail, ⊥ silent wrong binary
 - V8: ⊥ IFD, ⊥ `--impure`, ⊥ network in build phase
-- V9: `doCheck = true`. Every skipped test listed in `checkFlags` w/ inline reason. ∀ skip ! name a test that EXISTS in `.#hk.src` — `--skip=<gone>` is accepted silently ∴ CI asserts (`scripts/check-skips.sh`)
+- V9: `doCheck = true`. Skip list = ∅ since 2.7.0 (T48). Any future skip ∈ `checkFlags` w/ inline reason. ∀ skip ! name a test that EXISTS in `.#hk.src` — `--skip=<gone>` is accepted silently ∴ CI asserts (`scripts/check-skips.sh`)
 - V10: push filter uploads own paths only; ⊥ mirror whole nixpkgs closure
   - measured: hk narinfo `References: …-libiconv-113` only, that dep ∉ our cache (`nix copy --from` alone fails on it). Deps come from `cache.nixos.org` ∴ V10 holds & consumers ! keep both substituters
 - V11: ~~own pinned nixpkgs rev~~ superseded by V17, V18
@@ -193,6 +193,7 @@ T39|x|proved hk 1.55.0 + itok (`--all-features`) + microlith compile on rustc 1.
 T40|x|measured: cargo+rustc alone build hk. ⊥ cmake, ⊥ pkg-config, ⊥ libgit2, ⊥ openssl. Encoded §C|V34
 T46|x|hk 2.7.0: per-repo state upstream (jdx/hk#1705) supersedes local wrapper (#9, closed unmerged). pkl generated ∈ preBuild, `HK_REQUIRE_EMBEDDED_PKL=1`, sandbox HOME + git repo ∈ preCheck. Full suite ✓ aarch64-darwin|V1,V34
 T47|.|consumers (sherd, itok, microlith, then pklith): `nix flake update nix-hk` + re-vendor 2.7.0 `Config.pkl` (pklith V28) + strict-Pkl fixes + `stage = true` on hooks relying on 1.x staging|V1
+T48|x|dropped all 8 inherited skips (nixpkgs recipe + upstream `default.nix`). Measured 2.7.0 w/ generated pkl (B7) + preCheck env: 842 passed, 0 failed, 0 filtered (aarch64-darwin). All 8 pass once generated pkl present; whether empty `BUILTINS_META` was their original failure ⊥ measured (stated reason was "detect toolchains on the host"). `check-skips.sh` accepts ∅, still fails on unparsable `--skip=`|V9
 
 ## §B bugs
 
