@@ -53,10 +53,12 @@ jobs:
         run: |
           set -euo pipefail
           branch="upstream/hk-$V"
-          # Idempotent: a PR for this version may already be open from an
-          # earlier run that nobody has merged yet.
-          if git ls-remote --exit-code --heads origin "$branch" >/dev/null 2>&1; then
-            echo "branch $branch already exists, nothing to do"
+          # Idempotent on the PR, not the branch: a PR for this version may
+          # already be open from an earlier run that nobody has merged yet. A
+          # branch alone is not one; an earlier run can push it and then fail
+          # to open the PR, and keying on it skipped that version forever (B9).
+          if [ -n "$(gh pr list --head "$branch" --state open --json number --jq '.[].number')" ]; then
+            echo "PR for $branch already open, nothing to do"
             exit 0
           fi
           git config user.name "github-actions[bot]"
@@ -72,7 +74,7 @@ jobs:
           The test skip list is not revalidated automatically -- if upstream
           renamed or fixed any of the eight skipped tests, that shows up as a
           check failure here, which is the intended place to notice it."
-          git push -u origin "$branch"
+          git push --force -u origin "$branch"
           gh pr create --base main --head "$branch" \
             --title "feat: hk $V" \
             --body "Automated bump to hk \`$V\`.
