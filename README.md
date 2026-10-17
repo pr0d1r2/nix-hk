@@ -137,3 +137,33 @@ are deliberately absent, each verified by building without it:
 
 `usage` *is* required, despite looking droppable: `hk completion <shell>` execs
 it during `postInstall`.
+
+## State directory
+
+`bin/hk` is a small wrapper around the real binary in `libexec/hk`. Upstream hk
+keeps all of its state in one global `~/.local/state/hk`, shared by every
+repository on the machine, which has two consequences:
+
+- `output.log` is overwritten by whichever repository ran hk last, so the
+  `See ... for full command output` line after a failed hook can point at
+  another repository's failure.
+- Stash backup patches rotate by the basename of the current directory, so a
+  repository named `app` can rotate away the backups of `app-web`, and every
+  linked worktree keeps its own 20 that are never rotated.
+
+Inside a git repository the wrapper sets, unless already set to a non-empty
+value:
+
+| Variable | Path | Scope |
+|---|---|---|
+| `HK_STATE_DIR` | `<git-common-dir>/hk` | stash patches, shared by all worktrees |
+| `HK_OUTPUT_FILE` | `<git-dir>/hk/output.log` | one checkout |
+| `HK_LOG_FILE` | `<git-dir>/hk/hk.log` | one checkout |
+
+So in a plain clone everything is under `.git/hk/`, and a linked worktree has
+its own `output.log` under `.git/worktrees/<name>/hk/`. Outside a repository,
+or without `git` on `PATH`, hk runs unchanged with its own defaults. Old state
+in `~/.local/state/hk` is left alone.
+
+The wrapper goes away once upstream changes the default
+([jdx/hk#1703](https://github.com/jdx/hk/issues/1703)).

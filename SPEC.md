@@ -58,6 +58,17 @@ nixpkgs-lock ──> nix-hk ──┐
 - V20/V32 currently **⊥ enforced**. `assert-pins` checks THIS repo only (rev ≡ nixpkgs-lock, rustc ≡ 1.95.x). ⊥ job anywhere reads a consumer's `Cargo.toml` ∴ itok & microlith sit at `1.96` against a 1.95 pin & nothing fails. Same silent shape as the 1.96-vs-1.91 gap. Gate ships w/ T26/T27, ∈ each consumer's CI.
 - crate-pin drift (`blackbox/Cargo.toml` pins `microlith = "0.5"`, local `0.6.0`) ∉ this repo. Governed pins → `set-and-setting` or accepted. Died with nixpkgs-rust-lock; problem outlives its mechanism.
 
+### state dir
+
+- upstream hk: ∀ state ∈ ONE global dir `HK_STATE_DIR` (default `~/.local/state/hk`), shared ∀ repo on the machine. `output.log`, `hk.log`, `patches/` all derive from it (`src/env.rs`; docs claim `HK_OUTPUT_FILE` hardcoded = stale).
+- `output.log` = last failure, ANY repo → hk's `See … for full command output` points at another repo's failure. Observed: pre-push fail in repo A, file held repo B's `itok` error on a path ∉ A.
+- patch rotation keys on `repo_name()` = **cwd basename** + prefix `"<name>-"` → repo `app` rotates away `app-web`'s backups; run from subdir files patches under subdir name; ∀ linked worktree = new name w/ own quota 20, ⊥ ever rotated (measured 419 patches).
+- hk already puts `hk-stash.lock` ∈ common git dir ∴ per-repo state ∈ git dir = upstream's own precedent.
+- fix ∈ upstream = jdx/hk#1703 (filed 2026-10-15). Until then nix-hk wraps `bin/hk` (`pkgs/hk/state-dir.sh`), real binary → `libexec/hk`. Wrapper = stopgap, removed when upstream default changes (T45).
+- scope split: patches = repo (common dir, survive `git worktree remove`); output + log = checkout (git dir, parallel worktree runs ⊥ clobber).
+- hk creates parents of `HK_OUTPUT_FILE`, `HK_LOG_FILE`, `HK_STATE_DIR` itself ∴ wrapper only exports.
+- wrapper uses `git` from PATH, ⊥ `gitMinimal` in closure. No git → hk unchanged.
+
 ### build & CI
 
 - systems tiered:
@@ -84,6 +95,8 @@ nixpkgs-lock ──> nix-hk ──┐
 - flake: `packages.<sys>.default` ≡ `packages.<sys>.hk`
 - flake: `overlays.default` → adds `pkgs.hk`
 - flake: `checks.<sys>.hk` → build + test suite
+- flake: `checks.<sys>.state-dir` → `tests/state-dir.bats` vs `pkgs/hk/state-dir.sh`
+- env (in a git repo, each only if unset/empty): `HK_STATE_DIR` = `<git-common-dir>/hk`, `HK_OUTPUT_FILE` = `<git-dir>/hk/output.log`, `HK_LOG_FILE` = `<git-dir>/hk/hk.log`
 - flake: `devShells.<sys>.default` → hk + nix gates from pinned nixpkgs
 - consumer (`itok`, `microlith`):
   ```nix
@@ -139,6 +152,8 @@ nixpkgs-lock ──> nix-hk ──┐
 - V33: libgit2 vendored. ⊥ `LIBGIT2_NO_VENDOR`, ⊥ `libgit2` ∈ buildInputs. If a future pin ships libgit2 satisfying `libgit2-sys` req, switching = deliberate change + measured, ⊥ assumed
 - V34: `buildInputs`/`nativeBuildInputs` ≡ measured need. ∀ entry ! justified by a build failure without it. ⊥ copy upstream recipe unverified
 - V35: `main` build → ∀ tier-1 path ∈ cachix, asserted by querying `<hash>.narinfo` ≡ 200 from a **separate job** (`needs: build`). `cachix-action` pushes in its POST step & logs 403/failures WITHOUT failing the job ∴ neither a green build nor a green push step is evidence of a populated cache
+- V36: inside a git repo, `bin/hk` → patches ∈ `<git-common-dir>/hk`, `output.log` + `hk.log` ∈ `<git-dir>/hk`. Same paths from any subdir; linked worktree → own output/log, shared patches
+- V37: wrapper ⊥ override a non-empty value already set; outside a repo or w/o `git` on PATH → sets nothing, hk runs w/ its own defaults; args + exit status pass through verbatim
 
 ## §T tasks
 
@@ -185,6 +200,8 @@ T37|x|dead: `blackbox` microlith drift ∉ this repo|—
 T38|x|CI assert pinned rustc ≡ 1.95.x. Tested local: `rustc 1.95.0` ✓|V31
 T39|x|proved hk 1.55.0 + itok (`--all-features`) + microlith compile on rustc 1.95.0 (aarch64-darwin). `hk --version` → `hk 1.55.0`|V31,V32
 T40|x|measured: cargo+rustc alone build hk. ⊥ cmake, ⊥ pkg-config, ⊥ libgit2, ⊥ openssl. Encoded §C|V34
+T44|x|`pkgs/hk/state-dir.sh` wraps `bin/hk`, real binary ∈ `libexec/hk`, completions from real binary. `checks.<sys>.state-dir` runs 8 bats cases|V36,V37
+T45|.|drop wrapper once jdx/hk#1703 ships a per-repo default ∈ a 1.x release we pin (or 2.x migration)|V36
 
 ## §B bugs
 
@@ -194,3 +211,4 @@ B2|2026-08-13|§C listed `openssl` buildInput copied from upstream recipe. hk = 
 B3|2026-08-13|First `main` CI run green, cache still empty (404). `cachix-action` no-ops on empty `authToken`, exits 0 → push step ⊥ evidence. V6 would read satisfied while ∀ consumer rebuilds from source|V35
 B4|2026-08-13|V35 assert placed INSIDE build job → runs @ 07:22:40, cachix post-push @ 07:22:41 ∴ 404 even when push would succeed. Own bug. ∴ moved to `verify-cache` job, `needs: build`|V35
 B5|2026-08-13|Token set but scoped wrong → `403 Forbidden` ∀ push, `Post Run cachix-action` STILL reported success. Silent-empty-cache confirmed real, ⊥ hypothetical|V35
+B6|2026-10-15|hk state global ∀ repo: `output.log` from repo B shown after repo A's pre-push failure; patch rotation by cwd-basename prefix deletes other repos' backups. Upstream design, ⊥ ours; worked around by wrapper|V36,V37
