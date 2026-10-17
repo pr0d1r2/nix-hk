@@ -18,7 +18,7 @@ that is a slow success rather than an error.
 | step | who | what |
 | ---- | --- | ---- |
 | 1 | `nixpkgs-lock` | its own `pin-refresh` loop moves the rev |
-| 2 | `nix-hk` | `update-pins.yml` (06:50 daily) opens a PR; merge it |
+| 2 | `nix-hk` | the hallucinogen loop's pin refresh opens a PR (repo topic `hallucinogen-tended`); merge it |
 | 3 | consumers | pick up the new `nixpkgs-lock` **and** `nix-hk` together |
 
 Step 3 needs both inputs moved in one commit. Moving only `nixpkgs-lock` leaves
