@@ -6,6 +6,7 @@
   installShellFiles,
   versionCheckHook,
   gitMinimal,
+  cacert,
   usage,
   python3,
   pkl,
@@ -64,8 +65,14 @@ rustPlatform.buildRustPackage (finalAttrs: {
     python3 scripts/gen_builtins.py
   '';
 
-  # Some tests build fixture repositories by shelling out to git.
-  nativeCheckInputs = [ gitMinimal ];
+  # Some tests build fixture repositories by shelling out to git. `cacert`
+  # because tests that load a config build hk's HTTP client, and on Linux
+  # rustls-platform-verifier fails with "failed to build HTTP client: builder
+  # error" when the sandbox has no CA bundle (darwin uses the keychain).
+  nativeCheckInputs = [
+    gitMinimal
+    cacert
+  ];
 
   # The sandbox HOME is read-only, and hk's cache tests write under it. The
   # step_context tests call `Git::new()` on the current directory, which in
