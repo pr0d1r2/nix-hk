@@ -105,7 +105,7 @@ jobs:
           rev="$(nix flake metadata --json | jq -r '.locks.nodes.nixpkgs.locked.rev')"
           nix shell "github:NixOS/nixpkgs/$rev#shellcheck" \
                     "github:NixOS/nixpkgs/$rev#actionlint" \
-            -c sh -c 'shellcheck scripts/*.sh && actionlint .github/workflows/*.yml'
+            -c sh -c 'shellcheck scripts/*.sh pkgs/hk/*.sh && actionlint .github/workflows/*.yml'
 
       # A --skip naming a test that no longer exists is accepted silently, so
       # the skip list can decay into a no-op without any signal (V9).
