@@ -1,0 +1,93 @@
+---
+name: CI
+
+"on":
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# Linux gates the expensive jobs (darwin runner + aarch64 QEMU).
+# The embedded cachix inside nix-lefthook-ci-action@ce9a118b targets
+# Node.js 20 and fails on Node.js 24 runners (B8/B10); disable it
+# with cachix-cache: "" and set up cachix separately if needed.
+#
+# Materialized configs (.markdownlint.yml, .yamllint.yml) are
+# gitignored (V22) and must be synced before hooks run. The sync
+# pre-step builds packages.setting and copies configs into the
+# workspace. The CI action re-checks-out tracked files but preserves
+# untracked (gitignored) files, so synced configs survive.
+
+jobs:
+  build-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: cachix/install-nix-action@v27
+        with:
+          extra_nix_config: |
+            access-tokens = github.com=${{ secrets.GITHUB_TOKEN }}
+      - name: Sync materialized configs
+        run: |
+          setting_pkg="$(nix build .#setting --print-out-paths --no-link)"
+          "$setting_pkg/bin/sync-setting" .
+      - uses: pr0d1r2/nix-lefthook-ci-action@ce9a118b05e90e186dba48a82067adeed185f7d4
+        with:
+          devshell: "default"
+          skip-build: "true"
+          cachix-cache: ""
+          extra-env: >-
+            GIT_OPTIONAL_LOCKS=0
+          keep-home: "true"
+          flake-check-timeout: "600"
+          flake-eval-timeout: "120"
+
+  build-darwin:
+    needs: build-linux
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: cachix/install-nix-action@v27
+        with:
+          extra_nix_config: |
+            access-tokens = github.com=${{ secrets.GITHUB_TOKEN }}
+      - name: Sync materialized configs
+        run: |
+          setting_pkg="$(nix build .#setting --print-out-paths --no-link)"
+          "$setting_pkg/bin/sync-setting" .
+      - uses: pr0d1r2/nix-lefthook-ci-action@ce9a118b05e90e186dba48a82067adeed185f7d4
+        with:
+          devshell: "default"
+          skip-build: "true"
+          cachix-cache: ""
+          extra-env: >-
+            GIT_OPTIONAL_LOCKS=0
+          keep-home: "true"
+          flake-check-timeout: "600"
+          flake-eval-timeout: "120"
+
+  build-linux-arm:
+    needs: build-linux
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-qemu-action@v3
+      - uses: cachix/install-nix-action@v27
+        with:
+          extra_nix_config: |
+            access-tokens = github.com=${{ secrets.GITHUB_TOKEN }}
+      - name: Sync materialized configs
+        run: |
+          setting_pkg="$(nix build .#setting --print-out-paths --no-link)"
+          "$setting_pkg/bin/sync-setting" .
+      - uses: pr0d1r2/nix-lefthook-ci-action@ce9a118b05e90e186dba48a82067adeed185f7d4
+        with:
+          devshell: "default"
+          extra-platforms: aarch64-linux
+          skip-build: "true"
+          cachix-cache: ""
+          extra-env: >-
+            GIT_OPTIONAL_LOCKS=0
+          keep-home: "true"
+          flake-check-timeout: "600"
+          flake-eval-timeout: "120"
