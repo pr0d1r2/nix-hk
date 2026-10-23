@@ -2,7 +2,7 @@
 
 ## §G goal
 
-Deliver current `hk` (v2.7.0) to **nixos 26.05** systems. 26.05 ships ⊥ hk (init landed master after branch-off) ∴ this repo IS the 26.05 hk provider.
+Deliver current `hk` (v2.8.1) to **nixos 26.05** systems. 26.05 ships ⊥ hk (init landed master after branch-off) ∴ this repo IS the 26.05 hk provider.
 
 Nix flake build for aarch64-darwin, x86_64-linux, aarch64-linux; push to cachix `pr0d1r2`; consumed prebuilt (`itok`, `microlith`, future, any 26.05 host), ⊥ local compile.
 
@@ -12,11 +12,11 @@ Built w/ rustc from same 26.05 pin (1.95.0) ∴ ∀ pr0d1r2 Rust repo → identi
 
 ### upstream hk
 
-- src: `github:jdx/hk` tag `v2.7.0` (released 2026-10-16). 1.x held at 1.58.1 until 2026-10-17 bc 2.0 removed v1 config = fleet-wide `hk.pkl` migration (#7). Moved bc per-repo state (jdx/hk#1705, fixes #1703) ships ONLY ∈ 2.7.0, ⊥ 1.x backport.
+- src: `github:jdx/hk` tag `v2.8.1` (released 2026-10-23). 1.x held at 1.58.1 until 2026-10-17 bc 2.0 removed v1 config = fleet-wide `hk.pkl` migration (#7). Moved bc per-repo state (jdx/hk#1705, fixes #1703) ships ONLY ∈ 2.7.0, ⊥ 1.x backport.
 - 2.x evaluator (embedded `pklr`) = strict as `pkl` CLI. 1.58.1 accepted invalid Pkl: `///` doc comment before a mapping entry, `\`` escape. Consumers carrying those break on bump ∴ consumer PR fixes them (T47).
 - 2.x stages fixed files ONLY ∈ `pre-commit`. `hk fix` & custom hooks ⊥ stage unless `stage = true`.
 - per-repo state (2.7.0): `output.log` + `hk.log` ∈ `<git-dir>/hk/`, patches ∈ `<common-git-dir>/hk/patches/`; `core.sharedRepository` or outside repo → platform state dir. `HK_STATE_DIR` set → ALL state there (old behaviour).
-- hk = Rust. `edition = 2024`, `rust-version = 1.88.0` → pinned rustc ! ≥ 1.88.0.
+- hk = Rust. `edition = 2024`, `rust-version = 1.94.0` → pinned rustc ! ≥ 1.94.0.
 - pinned nixpkgs has **⊥ hk at all**. `hk: init at 1.48.0` landed nixpkgs master 2026-06-22, after `nixos-26.05` branch-off (~2026-05). `pkgs/by-name/hk/hk/package.nix` = 404 @ rev `9f78f44a`. Master recipe (1.54.0) = **template only**, ⊥ importable.
 - build deps (master 1.54.0 recipe): nativeBuildInputs `pkg-config`, `installShellFiles`, `usage`; buildInputs `libgit2`, `openssl`; nativeCheckInputs `gitMinimal`. Two of those inert — see below.
 - **libgit2 ! vendored.** `git2 = "0.21"` w/ feature `vendored-libgit2`; `libgit2-sys 0.18.7+1.9.6` demands `libgit2 >= 1.9.6, < 1.10.0`. Pin ships **1.9.3**, nixpkgs master **1.9.4** → system link IMPOSSIBLE both places. Upstream recipe's `buildInputs.libgit2` = vestigial; nothing sets `LIBGIT2_NO_VENDOR` ∴ nixpkgs already vendors, silently. Measured: `LIBGIT2_NO_VENDOR=1` → hard panic `no compatible system libgit2 could be found`.
@@ -52,7 +52,7 @@ nixpkgs-lock ──> nix-hk ──┐
 
 - rustc ∈ pinned nixpkgs = **1.95.0** (`compilers/rust/1_95.nix` @ rev `9f78f44a`). Sole toolchain source ∀ fleet.
 - ⊥ rust-overlay, ⊥ fenix, ⊥ `rust-toolchain.toml`, ⊥ 2nd nixpkgs input. One input, one closure.
-- 1.95.0 ≥ 1.88.0 → hk MSRV satisfied (V17 holds).
+- 1.95.0 ≥ 1.94.0 → hk MSRV satisfied (V17 holds).
 - escape hatch, ⊥ paid now: if future rustc genuinely lands ahead of stable → rust-overlay as 2nd input w/ `nixpkgs.follows`.
 
 ### consumer toolchain drift (out-of-repo, tracked)
@@ -86,7 +86,7 @@ nixpkgs-lock ──> nix-hk ──┐
     nixpkgs.follows = "nixpkgs-lock/nixpkgs";
   };
   ```
-- flake: `packages.<sys>.hk` → hk 2.7.0 derivation
+- flake: `packages.<sys>.hk` → hk 2.8.1 derivation
 - flake: `packages.<sys>.default` ≡ `packages.<sys>.hk`
 - flake: `overlays.default` → adds `pkgs.hk`
 - flake: `checks.<sys>.hk` → build + test suite
@@ -104,13 +104,13 @@ nixpkgs-lock ──> nix-hk ──┐
 - env: `CACHIX_AUTH_TOKEN` ! set in repo secrets. ! **per-cache token w/ WRITE** on `pr0d1r2` (`app.cachix.org/cache/pr0d1r2/settings/authtokens`), ⊥ personal token. Wrong scope → `403 You're not authorized to access binary cache pr0d1r2`, push fails, job stays green
 - ⊥ workflow pushes a branch or opens a PR. repo setting "Allow GitHub Actions to create and approve pull requests" OFF by intent; bumps arrive by hand or from the loop (B9)
 - cmd: `nix build .#hk` → `result/bin/hk`
-- cmd: `nix run .#hk -- --version` → stdout `hk 2.7.0`
+- cmd: `nix run .#hk -- --version` → stdout `hk 2.8.1`
 - cmd: `nix flake check --all-systems` → exit 0. Bare `nix flake check` ⊥ sufficient: silently omits systems the runner ⊥ build (`warning: The check omitted these incompatible systems: …`) ∴ tier-2 rots green
 - ci: `.github/workflows/build.yml` matrix {ubuntu-24.04, ubuntu-24.04-arm, macos-14}
 
 ## §V invariants
 
-- V1: `nix run .#hk -- --version` → contains `2.7.0`
+- V1: `nix run .#hk -- --version` → contains `2.8.1`
 - V2: ∀ sys ∈ {aarch64-darwin, x86_64-linux, aarch64-linux} → `packages.<sys>.hk` evals & builds
 - V3: `srcHash` & `cargoHash` = real literal sha256. ⊥ `lib.fakeHash` on `main`
 - V4: `flake.lock` committed & `nix flake check` pass in CI
@@ -127,7 +127,7 @@ nixpkgs-lock ──> nix-hk ──┐
 - V14: this repo ships hk only. Toolchain pkgs ∉ here
 - V15: ∀ ecosystem repo → push same cache `pr0d1r2`
 - V16: ~~bump order lock→nix-hk→rust-lock→consumers~~ superseded by V22
-- V17: rustc ∈ pinned nixpkgs ! ≥ 1.88.0. CI assert
+- V17: rustc ∈ pinned nixpkgs ! ≥ 1.94.0. CI assert
 - V18: `flake.nix` inputs ≡ {`nixpkgs-lock`}. ⊥ direct nixpkgs URL, ⊥ 2nd input
 - V19: ~~nixpkgs-rust-lock ⊥ input nix-hk (cycle guard)~~ dead w/ that repo. Cycle prevention now = nixpkgs-lock's leaf rule #17, enforced there; nix-hk ⊥ provider ∴ ⊥ apply
 - V20: ∀ pr0d1r2 Rust repo → same nixpkgs rev ∴ same toolchain. Toolchain = whatever pinned nixpkgs ships, ⊥ union repo. Single bump entry = `nixpkgs-lock`

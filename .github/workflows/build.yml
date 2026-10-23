@@ -58,8 +58,8 @@ jobs:
           got="$(./result/bin/hk --version)"
           echo "$got"
           case "$got" in
-            *2.7.0*) ;;
-            *) echo "::error::expected hk 2.7.0, got: $got" >&2; exit 1 ;;
+            *2.8.1*) ;;
+            *) echo "::error::expected hk 2.8.1, got: $got" >&2; exit 1 ;;
           esac
 
 
@@ -181,7 +181,7 @@ jobs:
             exit 1
           fi
 
-      # V31, with V17 following from it: 1.95 >= hk's MSRV of 1.88.0. Pinning
+      # V31, with V17 following from it: 1.95 >= hk's MSRV of 1.94.0. Pinning
       # the exact minor is the part that was missing -- a consumer sat on 1.96
       # against a 1.91 pin and nothing anywhere said so.
       - name: rustc from the pin is 1.95.x
