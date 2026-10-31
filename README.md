@@ -107,6 +107,24 @@ it, so building on an Intel Mac compiles from source. GitHub's only Intel macOS
 runner is `macos-13`, which is being retired; the platform is kept, the CI spend
 is not. Breakage there does not block `main`.
 
+## Upstream bump entrypoint
+
+To check and bump `hk` to the latest upstream release:
+
+```
+nix run .#bump            # bump if upstream is newer
+nix run .#bump -- --force # re-resolve hashes for the current version
+```
+
+### Contract
+
+- Edits `pkgs/hk/package.nix` in place and never commits, branches, or opens a PR.
+- stdout prints `NEW_VERSION=<v>` only when something changed. Diagnostics go to stderr.
+- Exit codes:
+  - `0` = bumped successfully (or hashes re-resolved successfully with `--force`)
+  - `3` = already current
+  - non-zero = error
+
 ## Pin graph
 
 ```
