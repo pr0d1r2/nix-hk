@@ -7,15 +7,35 @@
 # which is a no-op if the hashes on disk are right and a loud diff if they are
 # not.
 #
-#   scripts/bump-hk.sh           # bump if upstream is newer
-#   scripts/bump-hk.sh --force   # re-resolve hashes for the current version
+#   nix run .#bump               # bump if upstream is newer
+#   nix run .#bump -- --force    # re-resolves hashes for the current version
 #
 # Writes pkgs/hk/package.nix in place. Prints NEW_VERSION=... on stdout when
 # something changed, so CI can decide whether to open a PR.
+#
+# Exit codes:
+#   0 = bumped successfully (or hashes re-resolved successfully with --force)
+#   3 = already current
+#   1 = error
 set -euo pipefail
 
-cd "$(dirname "$0")/.."
-pkg=pkgs/hk/package.nix
+# Find repo root containing pkgs/hk/package.nix
+if [ -f "pkgs/hk/package.nix" ]; then
+  pkg=pkgs/hk/package.nix
+elif [ -f "$(dirname "$0")/../pkgs/hk/package.nix" ]; then
+  cd "$(dirname "$0")/.."
+  pkg=pkgs/hk/package.nix
+else
+  git_root="$(git rev-parse --show-toplevel 2>/dev/null || true)"
+  if [ -n "$git_root" ] && [ -f "$git_root/pkgs/hk/package.nix" ]; then
+    cd "$git_root"
+    pkg=pkgs/hk/package.nix
+  else
+    echo "cannot find pkgs/hk/package.nix" >&2
+    exit 1
+  fi
+fi
+
 force=false
 [ "${1:-}" = "--force" ] && force=true
 
@@ -30,7 +50,7 @@ echo "current=$current latest=$latest force=$force" >&2
 
 if [ "$current" = "$latest" ] && [ "$force" = false ]; then
   echo "already current" >&2
-  exit 0
+  exit 3
 fi
 
 # srcHash first: cheap, and a wrong one fails before we spend a build on it.
