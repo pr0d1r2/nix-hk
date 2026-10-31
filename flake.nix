@@ -62,5 +62,33 @@
           ];
         };
       });
+
+      apps = forAllSystems (
+        pkgs:
+        let
+          bump = {
+            type = "app";
+            program = "${
+              pkgs.writeShellApplication {
+                name = "bump-hk";
+                runtimeInputs = [
+                  pkgs.gh
+                  pkgs.nix
+                  pkgs.gawk
+                  pkgs.gnused
+                  pkgs.coreutils
+                  pkgs.git
+                  pkgs.curl
+                ];
+                text = builtins.readFile ./scripts/bump-hk.sh;
+              }
+            }/bin/bump-hk";
+          };
+        in
+        {
+          inherit bump;
+          default = bump;
+        }
+      );
     };
 }
