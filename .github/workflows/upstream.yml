@@ -1,10 +1,6 @@
 name: upstream
 
-# Poll jdx/hk for a new release and prove it builds here, hashes resolved.
-# Detection only: the job goes red when a newer hk exists (or fails to build),
-# and a person or the loop makes the bump. No workflow in this repository
-# pushes a branch or opens a PR (§C). Pull model on purpose: no cross-repo
-# token, nothing upstream needs to know we exist.
+# Poll jdx/hk for a new release, run the bump entrypoint, branch, and open a PR.
 on:
   schedule:
     - cron: "20 6 * * *"
@@ -15,7 +11,8 @@ concurrency:
   cancel-in-progress: false
 
 permissions:
-  contents: read
+  contents: write
+  pull-requests: write
 
 jobs:
   bump:
@@ -29,28 +26,62 @@ jobs:
             experimental-features = nix-command flakes
             accept-flake-config = true
 
-      # Read-only: nothing built here is pushed.
+      # Read-only: nothing built here is pushed to cachix.
       - uses: cachix/cachix-action@v16
         with:
           name: pr0d1r2
           skipPush: true
 
-      # `shell: bash` runs with pipefail; the default `bash -e {0}` does not, so
-      # a failed bump (a build that does not pass) exited with tee's 0, the job
-      # went green and nothing was reported (B8).
-      - name: Bump to latest upstream tag
+      - name: Run upstream bump entrypoint
         id: bump
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
-        run: ./scripts/bump-hk.sh | tee -a "$GITHUB_OUTPUT"
-
-      # Red, not a PR: the bump is made by hand or by the loop, where review
-      # happens. The message says exactly what to run.
-      - name: Report a newer hk
-        if: steps.bump.outputs.NEW_VERSION != ''
-        env:
-          V: ${{ steps.bump.outputs.NEW_VERSION }}
         run: |
-          echo "::error::hk $V is released and builds here; bump with scripts/bump-hk.sh, then update README.md and SPEC.md §G"
-          exit 1
+          set +e
+          output=$(nix run .#bump 2>&1)
+          code=$?
+          set -e
+          echo "$output"
+          
+          if [ $code -eq 0 ]; then
+            version=$(echo "$output" | grep '^NEW_VERSION=' | cut -d= -f2 || true)
+            if [ -n "$version" ]; then
+              echo "new_version=$version" >> "$GITHUB_OUTPUT"
+              echo "BUMPED=true" >> "$GITHUB_OUTPUT"
+            else
+              echo "BUMPED=false"
+            fi
+          elif [ $code -eq 3 ]; then
+            echo "Already current."
+            echo "BUMPED=false"
+          else
+            echo "Bump script failed with exit code $code"
+            exit $code
+          fi
+
+      - name: Create Pull Request
+        if: steps.bump.outputs.BUMPED == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          V: ${{ steps.bump.outputs.new_version }}
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          
+          branch="upstream/hk-$V"
+          git checkout -b "$branch"
+          git add pkgs/hk/package.nix
+          git commit -m "hk: bump to $V"
+          git push origin "$branch"
+          
+          if gh pr view "$branch" &>/dev/null; then
+            echo "PR for $branch already exists."
+          else
+            gh pr create \
+              --title "hk: bump to $V" \
+              --body "Automated bump to upstream v$V" \
+              --head "$branch" \
+              --base main
+          fi
