@@ -71,17 +71,18 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           
           branch="upstream/hk-$V"
+          if gh pr view "$branch" &>/dev/null; then
+            echo "PR for $branch already exists."
+            exit 0
+          fi
+
           git checkout -b "$branch"
           git add pkgs/hk/package.nix
           git commit -m "hk: bump to $V"
           git push origin "$branch"
           
-          if gh pr view "$branch" &>/dev/null; then
-            echo "PR for $branch already exists."
-          else
-            gh pr create \
-              --title "hk: bump to $V" \
-              --body "Automated bump to upstream v$V" \
-              --head "$branch" \
-              --base main
-          fi
+          gh pr create \
+            --title "hk: bump to $V" \
+            --body "Automated bump to upstream v$V" \
+            --head "$branch" \
+            --base main
