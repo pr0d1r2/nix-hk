@@ -106,7 +106,7 @@ nixpkgs-lock ──> nix-hk ──┐
 - cmd: `nix build .#hk` → `result/bin/hk`
 - cmd: `nix run .#hk -- --version` → stdout `hk 2.8.1`
 - cmd: `nix flake check --all-systems` → exit 0. Bare `nix flake check` ⊥ sufficient: silently omits systems the runner ⊥ build (`warning: The check omitted these incompatible systems: …`) ∴ tier-2 rots green
-- ci: `.github/workflows/build.yml` matrix {ubuntu-24.04, ubuntu-24.04-arm, macos-14}
+- ci: `.github/workflows/build.yml` matrix {ubuntu-24.04, ubuntu-24.04-arm, macos-latest}
 
 ## §V invariants
 
